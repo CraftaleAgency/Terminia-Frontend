@@ -2,24 +2,27 @@
 
 import Link from "next/link"
 import { ArrowRight, TrendingDown } from "lucide-react"
+import { motion } from "framer-motion"
+import { ContainerScroll } from "@/components/ui/container-scroll-animation"
+import { DashboardPreview } from "@/components/landing/dashboard-preview"
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
+    <section className="relative overflow-hidden">
       {/* Background glow orbs */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
         {/* Central blue glow */}
-        <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.18_220/0.12)_0%,transparent_70%)]" />
+        <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.18_220/0.15)_0%,transparent_70%)]" />
         {/* Top-left accent */}
-        <div className="absolute -left-40 top-10 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.15_200/0.07)_0%,transparent_70%)]" />
+        <div className="absolute -left-40 top-10 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.15_200/0.08)_0%,transparent_70%)]" />
         {/* Bottom-right accent */}
-        <div className="absolute -right-40 bottom-10 w-[350px] h-[350px] rounded-full bg-[radial-gradient(circle,oklch(0.60_0.12_240/0.06)_0%,transparent_70%)]" />
+        <div className="absolute -right-40 bottom-10 w-[450px] h-[450px] rounded-full bg-[radial-gradient(circle,oklch(0.60_0.12_240/0.08)_0%,transparent_70%)]" />
         {/* Grid pattern */}
         <div
-          className="absolute inset-0 opacity-[0.035]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
             backgroundImage: `linear-gradient(oklch(0.72 0.18 220) 1px, transparent 1px), linear-gradient(90deg, oklch(0.72 0.18 220) 1px, transparent 1px)`,
             backgroundSize: "80px 80px",
@@ -27,139 +30,96 @@ export function Hero() {
         />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-1.5 text-sm text-muted-foreground mb-8 border border-border/40">
-          <TrendingDown className="size-3.5 text-primary" aria-hidden />
-          <span>Le PMI perdono in media il</span>
-          <span className="font-semibold text-primary">9% del fatturato</span>
-          <span>per contratti non gestiti</span>
-        </div>
+      <ContainerScroll
+        titleComponent={
+          <div className="pt-32 pb-10">
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="inline-flex items-center gap-2 glass-card rounded-full px-5 py-2 text-base text-muted-foreground mb-10 border border-border/40"
+            >
+              <TrendingDown className="size-4 text-primary" aria-hidden />
+              <span>Le PMI perdono in media il</span>
+              <span className="font-semibold text-primary">9% del fatturato</span>
+              <span>per contratti non gestiti</span>
+            </motion.div>
 
-        {/* Heading */}
-        <h1 className="text-balance text-5xl sm:text-6xl lg:text-7xl font-semibold leading-[1.1] tracking-tight mb-6">
-          <span className="text-foreground">Il tuo CRM contrattuale</span>
-          <br />
-          <span className="text-gradient">alimentato dall'AI</span>
-        </h1>
+            {/* Heading */}
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-[1.05] tracking-tight mb-8"
+            >
+              <span className="text-foreground">Il tuo CRM contrattuale</span>
+              <br />
+              <span className="text-gradient">alimentato dall'AI</span>
+            </motion.h1>
 
-        <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground leading-relaxed mb-10">
-          Carica i tuoi contratti, lascia che l'AI estragga tutto. Monitora scadenze, rischi e obblighi in tempo reale.
-          Scopri i bandi pubblici compatibili con la tua azienda.
-        </p>
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="mx-auto max-w-3xl text-balance text-xl md:text-2xl text-muted-foreground leading-relaxed mb-12"
+            >
+              Carica i tuoi contratti, lascia che l'AI estragga tutto. Monitora scadenze, rischi e obblighi in tempo reale.
+              Scopri i bandi pubblici compatibili con la tua azienda.
+            </motion.p>
 
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
-          <Link
-            href="#"
-            className="flex items-center gap-2 bg-primary text-primary-foreground font-medium px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 glow-blue text-[15px]"
-          >
-            Inizia Gratis
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
-          <Link
-            href="#how-it-works"
-            className="flex items-center gap-2 glass-card text-foreground font-medium px-6 py-3 rounded-xl hover:glass-card-hover transition-all duration-200 text-[15px]"
-          >
-            Scopri come funziona
-          </Link>
-        </div>
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+            >
+              <Link
+                href="/dashboard"
+                className="group flex items-center gap-2 bg-primary text-primary-foreground font-medium px-8 py-4 rounded-2xl hover:bg-primary/90 transition-all duration-300 glow-blue text-lg"
+              >
+                Inizia Gratis
+                <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" aria-hidden />
+              </Link>
+              <Link
+                href="#how-it-works"
+                className="flex items-center gap-2 glass-card text-foreground font-medium px-8 py-4 rounded-2xl hover:glass-card-hover transition-all duration-300 text-lg border border-border/30"
+              >
+                Scopri come funziona
+              </Link>
+            </motion.div>
 
-        {/* Stats bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
-          {[
-            { value: "9%", label: "fatturato recuperato" },
-            { value: "< 2 min", label: "analisi contratto AI" },
-            { value: "ANAC + TED", label: "bandi monitorati" },
-          ].map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center gap-1">
-              <span className="text-2xl font-semibold text-foreground">{stat.value}</span>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Dashboard mockup */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-6 mt-16">
-        <div className="relative">
-          {/* Fade bottom */}
-          <div
-            aria-hidden
-            className="absolute bottom-0 left-0 right-0 h-32 z-10 bg-gradient-to-t from-background to-transparent"
-          />
-          <div className="glass-card rounded-2xl overflow-hidden border border-border/30 glow-blue">
-            {/* Mock browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
-              <div className="flex gap-1.5" aria-hidden>
-                <div className="w-3 h-3 rounded-full bg-muted/60" />
-                <div className="w-3 h-3 rounded-full bg-muted/60" />
-                <div className="w-3 h-3 rounded-full bg-muted/60" />
-              </div>
-              <div className="flex-1 mx-4">
-                <div className="glass-card rounded-lg px-3 py-1 text-xs text-muted-foreground text-center max-w-xs mx-auto border-border/20">
-                  app.contractos.it/dashboard
-                </div>
-              </div>
-            </div>
-            {/* Dashboard content */}
-            <DashboardMockup />
+            {/* Stats bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16"
+            >
+              {[
+                { value: "9%", label: "fatturato recuperato" },
+                { value: "< 2 min", label: "analisi contratto AI" },
+                { value: "ANAC + TED", label: "bandi monitorati" },
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
+                  className="flex flex-col items-center gap-2"
+                >
+                  <span className="text-3xl md:text-4xl font-semibold text-foreground">{stat.value}</span>
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider">{stat.label}</span>
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
-        </div>
-      </div>
+        }
+      >
+        {/* Dashboard Preview - mirrors real dashboard */}
+        <DashboardPreview />
+      </ContainerScroll>
     </section>
-  )
-}
-
-function DashboardMockup() {
-  return (
-    <div className="p-5 bg-[oklch(0.10_0.012_250)] min-h-64">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: "Contratti Attivi", value: "47", delta: "+3", color: "text-primary" },
-          { label: "In Scadenza 30gg", value: "8", delta: "!", color: "text-amber-400" },
-          { label: "Valore Portfolio", value: "€1.2M", delta: "", color: "text-foreground" },
-          { label: "Alert Aperti", value: "5", delta: "urgente", color: "text-red-400" },
-        ].map((kpi) => (
-          <div key={kpi.label} className="glass-card rounded-xl p-3 border border-border/20">
-            <div className="text-xs text-muted-foreground mb-1">{kpi.label}</div>
-            <div className={`text-xl font-semibold ${kpi.color}`}>{kpi.value}</div>
-            {kpi.delta && <div className="text-xs text-muted-foreground mt-0.5">{kpi.delta}</div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Contracts list preview */}
-      <div className="glass-card rounded-xl border border-border/20 overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-border/20 flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground">Contratti Recenti</span>
-          <span className="text-xs text-primary cursor-pointer">Vedi tutti →</span>
-        </div>
-        <div className="divide-y divide-border/10">
-          {[
-            { name: "Contratto Fornitura IT — TechSupply Srl", type: "Fornitore", status: "Attivo", risk: "Basso", date: "31 mag 2025" },
-            { name: "Accordo di Servizi — Studio Rossi & Assoc.", type: "Cliente", status: "In Scadenza", risk: "Medio", date: "15 apr 2025" },
-            { name: "Contratto Quadro — Logistica Express", type: "Fornitore", status: "Attivo", risk: "Alto", date: "01 lug 2025" },
-          ].map((contract, i) => (
-            <div key={i} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-foreground truncate">{contract.name}</div>
-                <div className="text-xs text-muted-foreground">{contract.type} · scade {contract.date}</div>
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                contract.status === "Attivo" ? "border-primary/30 text-primary bg-primary/10" :
-                "border-amber-400/30 text-amber-400 bg-amber-400/10"
-              }`}>{contract.status}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                contract.risk === "Basso" ? "text-emerald-400 bg-emerald-400/10" :
-                contract.risk === "Medio" ? "text-amber-400 bg-amber-400/10" :
-                "text-red-400 bg-red-400/10"
-              }`}>{contract.risk}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
