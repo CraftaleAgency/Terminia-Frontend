@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter, Geist_Mono } from 'next/font/google'
+import { Space_Grotesk, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space" });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -11,21 +12,8 @@ export const metadata: Metadata = {
   description: 'Terminia legge, capisce e protegge ogni contratto, dipendente e opportunita di gara della tua azienda. Il co-pilota legale AI per le PMI italiane.',
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/images/terminia-logo.png',
+    apple: '/images/terminia-logo.png',
   },
 }
 
@@ -35,9 +23,16 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="it" className={inter.variable}>
+    <html lang="it" className={spaceGrotesk.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>
