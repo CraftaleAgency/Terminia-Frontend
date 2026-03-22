@@ -6,7 +6,7 @@ import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
-  { label: "Funzionalità", href: "#features" },
+  { label: "Funzionalita", href: "#features" },
   { label: "Come Funziona", href: "#how-it-works" },
   { label: "BandoRadar", href: "#bandoradar" },
   { label: "Prezzi", href: "#pricing" },

@@ -3,6 +3,21 @@
 import Link from "next/link"
 import { ArrowRight, TrendingDown } from "lucide-react"
 
+function BorderMagicButton({ children, href }: { children: React.ReactNode; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="group relative inline-flex h-14 overflow-hidden rounded-full p-[1px] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+    >
+      <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,oklch(0.78_0.12_175)_0%,oklch(0.35_0.12_220)_50%,oklch(0.78_0.12_175)_100%)]" />
+      <span className="inline-flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-background px-8 py-1 text-lg font-medium text-foreground backdrop-blur-3xl transition-all duration-300 group-hover:bg-card">
+        {children}
+        <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" aria-hidden />
+      </span>
+    </Link>
+  )
+}
+
 export function Hero() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
@@ -21,8 +36,8 @@ export function Hero() {
         <div
           className="absolute inset-0 opacity-[0.035]"
           style={{
-            backgroundImage: `linear-gradient(oklch(0.72 0.18 220) 1px, transparent 1px), linear-gradient(90deg, oklch(0.72 0.18 220) 1px, transparent 1px)`,
-            backgroundSize: "80px 80px",
+            backgroundImage: `linear-gradient(oklch(0.75 0.14 180) 1px, transparent 1px), linear-gradient(90deg, oklch(0.75 0.14 180) 1px, transparent 1px)`,
+            backgroundSize: "100px 100px",
           }}
         />
       </div>
