@@ -10,6 +10,8 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowRight,
+  Radar,
+  Receipt,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -27,10 +29,12 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [kpis, setKpis] = useState({
     activeContracts: 0,
-    expiringContracts: 0,
-    totalValue: 0,
-    unreadAlerts: 0,
-    highRiskContracts: 0,
+    expiringIn30Days: 0,
+    totalPortfolioValue: 0,
+    pendingAlerts: 0,
+    highMatchBandi: 0,
+    toCollect: 0,
+    toPay: 0,
   })
 
   useEffect(() => {
@@ -50,7 +54,7 @@ export default function DashboardPage() {
     },
     {
       label: "In Scadenza 30gg",
-      value: kpis.expiringContracts.toString(),
+      value: kpis.expiringIn30Days.toString(),
       delta: "Richiede attenzione",
       deltaType: "warning" as const,
       icon: Clock,
@@ -58,7 +62,7 @@ export default function DashboardPage() {
     },
     {
       label: "Valore Portfolio",
-      value: formatCurrency(kpis.totalValue),
+      value: formatCurrency(kpis.totalPortfolioValue),
       delta: "+12% vs anno precedente",
       deltaType: "positive" as const,
       icon: Wallet,
@@ -66,19 +70,34 @@ export default function DashboardPage() {
     },
     {
       label: "Alert Aperti",
-      value: kpis.unreadAlerts.toString(),
-      delta: `${kpis.highRiskContracts} ad alto rischio`,
+      value: kpis.pendingAlerts.toString(),
+      delta: "Da gestire",
       deltaType: "negative" as const,
       icon: AlertTriangle,
       color: "text-red-400",
     },
     {
-      label: "Rischio Alto",
-      value: kpis.highRiskContracts.toString(),
-      delta: "Contratti da rivedere",
-      deltaType: "warning" as const,
+      label: "Bandi Match Alto",
+      value: kpis.highMatchBandi.toString(),
+      delta: "Opportunità",
+      deltaType: "positive" as const,
+      icon: Radar,
+      color: "text-primary",
+    },
+  ]
+
+  const financialCards = [
+    {
+      label: "Da Incassare",
+      value: formatCurrency(kpis.toCollect),
       icon: TrendingUp,
-      color: "text-orange-400",
+      color: "text-emerald-400",
+    },
+    {
+      label: "Da Pagare",
+      value: formatCurrency(kpis.toPay),
+      icon: Receipt,
+      color: "text-amber-400",
     },
   ]
 
@@ -94,7 +113,7 @@ export default function DashboardPage() {
         </div>
         <Link
           href="/dashboard/contracts/new"
-          className="flex items-center gap-2 bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-all glow-blue-sm text-sm"
+          className="flex items-center gap-2 bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-all glow-teal-sm text-sm"
         >
           Nuovo Contratto
           <ArrowUpRight className="size-4" />
@@ -111,7 +130,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.05 }}
-              className="glass-card rounded-2xl p-5 border border-border/20 group hover:glow-blue-sm transition-all duration-300"
+              className="glass-card rounded-2xl p-5 border border-border/20 group hover:glow-teal-sm transition-all duration-300"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className={`w-10 h-10 rounded-xl bg-muted/30 border border-border/20 flex items-center justify-center ${kpi.color}`}>
@@ -128,6 +147,32 @@ export default function DashboardPage() {
                 "text-red-400"
               }`}>
                 {kpi.delta}
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+
+      {/* Financial summary */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {financialCards.map((card, index) => {
+          const Icon = card.icon
+          return (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.25 + index * 0.05 }}
+              className="glass-card rounded-2xl p-5 border border-border/20"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">{card.label}</div>
+                  <div className={`text-2xl font-semibold ${card.color}`}>{card.value}</div>
+                </div>
+                <div className={`w-12 h-12 rounded-xl bg-muted/30 border border-border/20 flex items-center justify-center ${card.color}`}>
+                  <Icon className="size-6" />
+                </div>
               </div>
             </motion.div>
           )
@@ -159,28 +204,28 @@ export default function DashboardPage() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-foreground truncate">
-                    {contract.name} — {contract.counterpart}
+                    {contract.title} {contract.counterpart_name ? `— ${contract.counterpart_name}` : contract.employee_name ? `— ${contract.employee_name}` : ""}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {contract.type.charAt(0).toUpperCase() + contract.type.slice(1)} · scade {formatDate(contract.endDate)}
+                    {contract.contract_type.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())} · scade {formatDate(contract.end_date)}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                    contract.status === "attivo" ? "border-primary/30 text-primary bg-primary/10" :
-                    contract.status === "in_scadenza" ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
+                    contract.status === "active" ? "border-primary/30 text-primary bg-primary/10" :
+                    contract.status === "expiring" ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
                     "border-muted-foreground/30 text-muted-foreground bg-muted/20"
                   }`}>
-                    {contract.status === "attivo" ? "Attivo" : 
-                     contract.status === "in_scadenza" ? "In Scadenza" : 
-                     contract.status}
+                    {contract.status === "active" ? "Attivo" : 
+                     contract.status === "expiring" ? "In Scadenza" : 
+                     contract.status.replace(/^\w/, c => c.toUpperCase())}
                   </span>
                   <span className={`text-xs px-2.5 py-1 rounded-full ${
-                    contract.riskLevel === "basso" ? "text-emerald-400 bg-emerald-400/10" :
-                    contract.riskLevel === "medio" ? "text-amber-400 bg-amber-400/10" :
+                    contract.risk_score < 30 ? "text-emerald-400 bg-emerald-400/10" :
+                    contract.risk_score < 60 ? "text-amber-400 bg-amber-400/10" :
                     "text-red-400 bg-red-400/10"
                   }`}>
-                    {contract.riskLevel.charAt(0).toUpperCase() + contract.riskLevel.slice(1)}
+                    {contract.risk_score < 30 ? "Basso" : contract.risk_score < 60 ? "Medio" : "Alto"}
                   </span>
                 </div>
               </Link>
@@ -207,25 +252,25 @@ export default function DashboardPage() {
               <div
                 key={alert.id}
                 className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${
-                  alert.read ? "bg-muted/10" : "bg-muted/25"
+                  alert.status === "handled" ? "bg-muted/10" : "bg-muted/25"
                 }`}
               >
                 <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                  alert.priority === "high" ? "bg-red-400" :
-                  alert.priority === "medium" ? "bg-amber-400" :
-                  alert.priority === "low" ? "bg-emerald-400" :
-                  "bg-primary"
+                  alert.priority === "critical" ? "bg-red-400" :
+                  alert.priority === "high" ? "bg-amber-400" :
+                  alert.priority === "medium" ? "bg-primary" :
+                  "bg-emerald-400"
                 }`} />
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-medium truncate ${alert.read ? "text-muted-foreground" : "text-foreground"}`}>
+                  <div className={`text-sm font-medium truncate ${alert.status === "handled" ? "text-muted-foreground" : "text-foreground"}`}>
                     {alert.title}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {alert.contractName || alert.description}
+                    {alert.contract_name || alert.counterpart_name || alert.description}
                   </div>
-                  {alert.dueDate && (
+                  {alert.trigger_date && (
                     <div className="text-xs text-muted-foreground/70 mt-1">
-                      Scadenza: {formatDate(alert.dueDate)}
+                      Scadenza: {formatDate(alert.trigger_date)}
                     </div>
                   )}
                 </div>

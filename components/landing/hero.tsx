@@ -1,119 +1,104 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, TrendingDown } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
 import { ContainerScroll } from "@/components/ui/container-scroll-animation"
 import { DashboardPreview } from "@/components/landing/dashboard-preview"
 
+function BorderMagicButton({ children, href }: { children: React.ReactNode; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="group relative inline-flex h-14 overflow-hidden rounded-full p-[1px] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+    >
+      <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,oklch(0.78_0.12_175)_0%,oklch(0.35_0.12_220)_50%,oklch(0.78_0.12_175)_100%)]" />
+      <span className="inline-flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-background px-8 py-1 text-lg font-medium text-foreground backdrop-blur-3xl transition-all duration-300 group-hover:bg-card">
+        {children}
+        <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" aria-hidden />
+      </span>
+    </Link>
+  )
+}
+
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Background glow orbs */}
+      {/* Background glow orbs - teal themed */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
-        {/* Central blue glow */}
-        <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.18_220/0.15)_0%,transparent_70%)]" />
-        {/* Top-left accent */}
-        <div className="absolute -left-40 top-10 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.15_200/0.08)_0%,transparent_70%)]" />
-        {/* Bottom-right accent */}
-        <div className="absolute -right-40 bottom-10 w-[450px] h-[450px] rounded-full bg-[radial-gradient(circle,oklch(0.60_0.12_240/0.08)_0%,transparent_70%)]" />
+        {/* Central purple/teal gradient glow - inspired by wope */}
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1200px] h-[600px] bg-[radial-gradient(ellipse_at_center,oklch(0.45_0.12_280/0.25)_0%,oklch(0.55_0.14_195/0.15)_40%,transparent_70%)]" />
+        {/* Top left teal accent */}
+        <div className="absolute -left-40 top-20 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,oklch(0.68_0.12_195/0.1)_0%,transparent_60%)]" />
+        {/* Bottom right teal accent */}
+        <div className="absolute -right-40 bottom-40 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.75_0.14_180/0.08)_0%,transparent_60%)]" />
         {/* Grid pattern */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `linear-gradient(oklch(0.72 0.18 220) 1px, transparent 1px), linear-gradient(90deg, oklch(0.72 0.18 220) 1px, transparent 1px)`,
-            backgroundSize: "80px 80px",
+            backgroundImage: `linear-gradient(oklch(0.75 0.14 180) 1px, transparent 1px), linear-gradient(90deg, oklch(0.75 0.14 180) 1px, transparent 1px)`,
+            backgroundSize: "100px 100px",
           }}
         />
       </div>
 
       <ContainerScroll
         titleComponent={
-          <div className="pt-32 pb-10">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="inline-flex items-center gap-2 glass-card rounded-full px-5 py-2 text-base text-muted-foreground mb-10 border border-border/40"
-            >
-              <TrendingDown className="size-4 text-primary" aria-hidden />
-              <span>Le PMI perdono in media il</span>
-              <span className="font-semibold text-primary">9% del fatturato</span>
-              <span>per contratti non gestiti</span>
-            </motion.div>
-
-            {/* Heading */}
+          <div className="pt-24 md:pt-32 pb-6">
+            {/* Heading - wope style large centered */}
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-[1.05] tracking-tight mb-8"
+              transition={{ duration: 0.7, delay: 0.1 }}
+              className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-semibold leading-[1.05] tracking-tight mb-6"
             >
-              <span className="text-foreground">Il tuo CRM contrattuale</span>
+              <span className="text-foreground">Ogni scadenza.</span>
               <br />
-              <span className="text-gradient">alimentato dall'AI</span>
+              <span className="text-foreground">Ogni clausola.</span>
+              <br />
+              <span className="text-gradient">Ogni opportunita.</span>
             </motion.h1>
 
             <motion.p
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
-              className="mx-auto max-w-3xl text-balance text-xl md:text-2xl text-muted-foreground leading-relaxed mb-12"
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="mx-auto max-w-2xl text-balance text-lg md:text-xl text-muted-foreground leading-relaxed mb-10"
             >
-              Carica i tuoi contratti, lascia che l'AI estragga tutto. Monitora scadenze, rischi e obblighi in tempo reale.
-              Scopri i bandi pubblici compatibili con la tua azienda.
+              Lascia che l'AI legga, capisca e protegga ogni contratto della tua azienda.
+              Il co-pilota legale per le PMI italiane.
             </motion.p>
 
-            {/* CTAs */}
+            {/* CTAs with border magic */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
             >
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-2 bg-primary text-primary-foreground font-medium px-8 py-4 rounded-2xl hover:bg-primary/90 transition-all duration-300 glow-blue text-lg"
-              >
+              <BorderMagicButton href="/auth/register">
                 Inizia Gratis
-                <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" aria-hidden />
-              </Link>
+              </BorderMagicButton>
               <Link
                 href="#how-it-works"
-                className="flex items-center gap-2 glass-card text-foreground font-medium px-8 py-4 rounded-2xl hover:glass-card-hover transition-all duration-300 text-lg border border-border/30"
+                className="flex items-center gap-2 text-muted-foreground font-medium px-6 py-3.5 rounded-full hover:text-foreground transition-colors text-lg"
               >
                 Scopri come funziona
               </Link>
             </motion.div>
 
-            {/* Stats bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.5 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16"
+            {/* Subtle tagline */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="text-sm text-muted-foreground/70"
             >
-              {[
-                { value: "9%", label: "fatturato recuperato" },
-                { value: "< 2 min", label: "analisi contratto AI" },
-                { value: "ANAC + TED", label: "bandi monitorati" },
-              ].map((stat, index) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
-                  className="flex flex-col items-center gap-2"
-                >
-                  <span className="text-3xl md:text-4xl font-semibold text-foreground">{stat.value}</span>
-                  <span className="text-sm text-muted-foreground uppercase tracking-wider">{stat.label}</span>
-                </motion.div>
-              ))}
-            </motion.div>
+              Nessuna carta richiesta. Setup in 2 minuti.
+            </motion.p>
           </div>
         }
       >

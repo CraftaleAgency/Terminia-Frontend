@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'ContractOS — Il CRM Contrattuale AI per le PMI Italiane',
-  description: 'Carica i tuoi contratti, estrai dati con AI, monitora scadenze e scopri bandi pubblici compatibili con la tua azienda. ContractOS elimina il 9% di fatturato perso ogni anno in rinnovi non gestiti.',
+  title: 'Terminia — Ogni scadenza, ogni clausola, ogni opportunita. Sotto controllo.',
+  description: 'Terminia legge, capisce e protegge ogni contratto, dipendente e opportunita di gara della tua azienda. Il co-pilota legale AI per le PMI italiane.',
   generator: 'v0.app',
   icons: {
     icon: [

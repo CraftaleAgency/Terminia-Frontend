@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Image from "next/image"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -16,18 +17,25 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Receipt,
+  FileSearch,
+  FileOutput,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAlerts } from "@/lib/mock-data"
 
 const mainNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Contratti", href: "/dashboard/contracts", icon: FileText },
   { label: "Controparti", href: "/dashboard/counterparts", icon: Building2 },
   { label: "Dipendenti", href: "/dashboard/employees", icon: Users },
+  { label: "Fatture", href: "/dashboard/invoices", icon: Receipt },
   { label: "BandoRadar", href: "/dashboard/bandi", icon: Radar },
+  { label: "Documenti", href: "/dashboard/documents", icon: FileOutput },
+  { label: "Advisor OSINT", href: "/dashboard/advisor", icon: FileSearch },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { label: "Alert", href: "/dashboard/alerts", icon: Bell },
+  { label: "Alert", href: "/dashboard/alerts", icon: Bell, badge: true },
 ]
 
 const bottomNavItems = [
@@ -36,7 +44,28 @@ const bottomNavItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [alertCount, setAlertCount] = useState(0)
+  const [userName, setUserName] = useState("Demo User")
+  const [userEmail, setUserEmail] = useState("demo@terminia.it")
+
+  useEffect(() => {
+    const alerts = getAlerts()
+    setAlertCount(alerts.filter(a => a.status === "pending").length)
+    
+    const user = localStorage.getItem("terminia_user")
+    if (user) {
+      const parsed = JSON.parse(user)
+      setUserName(parsed.name || parsed.fullName || "Demo User")
+      setUserEmail(parsed.email || "demo@terminia.it")
+    }
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem("terminia_user")
+    router.push("/")
+  }
 
   return (
     <aside
@@ -54,14 +83,14 @@ export function DashboardSidebar() {
           "flex items-center h-[72px] px-4 border-b border-border/20",
           collapsed ? "justify-center" : "gap-3"
         )}>
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex-shrink-0">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>
-                <rect x="2" y="1" width="9" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4" className="text-primary"/>
-                <path d="M5 4h5M5 7h5M5 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className="text-primary"/>
-                <circle cx="12.5" cy="12.5" r="2.5" fill="currentColor" className="text-primary"/>
-              </svg>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/images/terminia-logo.png"
+              alt="Terminia"
+              width={36}
+              height={36}
+              className="rounded-lg flex-shrink-0"
+            />
             <AnimatePresence>
               {!collapsed && (
                 <motion.span
@@ -70,7 +99,7 @@ export function DashboardSidebar() {
                   exit={{ opacity: 0, width: 0 }}
                   className="text-foreground font-semibold text-lg tracking-tight overflow-hidden whitespace-nowrap"
                 >
-                  ContractOS
+                  Terminia
                 </motion.span>
               )}
             </AnimatePresence>
@@ -91,7 +120,7 @@ export function DashboardSidebar() {
                     className={cn(
                       "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
                       isActive
-                        ? "bg-primary/15 text-primary glow-blue-sm"
+                        ? "bg-primary/15 text-primary glow-teal-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     )}
                   >
@@ -105,13 +134,22 @@ export function DashboardSidebar() {
                           initial={{ opacity: 0, width: 0 }}
                           animate={{ opacity: 1, width: "auto" }}
                           exit={{ opacity: 0, width: 0 }}
-                          className="text-sm font-medium overflow-hidden whitespace-nowrap"
+                          className="text-sm font-medium overflow-hidden whitespace-nowrap flex-1"
                         >
                           {item.label}
                         </motion.span>
                       )}
                     </AnimatePresence>
-                    {isActive && !collapsed && (
+                    {item.badge && alertCount > 0 && (
+                      <span className={cn(
+                        "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-medium",
+                        "bg-red-500 text-white",
+                        collapsed && "absolute -top-1 -right-1"
+                      )}>
+                        {alertCount}
+                      </span>
+                    )}
+                    {isActive && !collapsed && !item.badge && (
                       <motion.div
                         layoutId="activeIndicator"
                         className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
@@ -178,13 +216,16 @@ export function DashboardSidebar() {
                   exit={{ opacity: 0, width: 0 }}
                   className="flex-1 min-w-0 overflow-hidden"
                 >
-                  <div className="text-sm font-medium text-foreground truncate">Sitelab</div>
-                  <div className="text-xs text-muted-foreground truncate">sitelab@yupmail.com</div>
+                  <div className="text-sm font-medium text-foreground truncate">{userName}</div>
+                  <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
                 </motion.div>
               )}
             </AnimatePresence>
             {!collapsed && (
-              <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
+              <button 
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+              >
                 <LogOut className="size-4" />
               </button>
             )}
