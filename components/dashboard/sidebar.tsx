@@ -24,6 +24,8 @@ import {
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { getAlerts } from "@/lib/mock-data"
+import { logout } from "@/app/auth/actions"
+import { useUser } from "@/lib/hooks/use-user"
 
 const mainNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -45,26 +47,20 @@ const bottomNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { user } = useUser()
   const [collapsed, setCollapsed] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
-  const [userName, setUserName] = useState("Demo User")
-  const [userEmail, setUserEmail] = useState("demo@terminia.it")
 
   useEffect(() => {
     const alerts = getAlerts()
     setAlertCount(alerts.filter(a => a.status === "pending").length)
-    
-    const user = localStorage.getItem("terminia_user")
-    if (user) {
-      const parsed = JSON.parse(user)
-      setUserName(parsed.name || parsed.fullName || "Demo User")
-      setUserEmail(parsed.email || "demo@terminia.it")
-    }
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("terminia_user")
-    router.push("/")
+  const userName = user?.user_metadata?.full_name || user?.user_metadata?.company_name || user?.email?.split('@')[0] || "Utente"
+  const userEmail = user?.email || "utente@terminia.it"
+
+  const handleLogout = async () => {
+    await logout()
   }
 
   return (

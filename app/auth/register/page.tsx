@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { signup } from "../actions"
+import { motion } from "framer-motion"
 
 const sectors = [
   "Informatica e Tecnologia",
@@ -33,6 +35,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -74,19 +77,23 @@ export default function RegisterPage() {
     }
 
     setIsLoading(true)
-    // Mock registration
-    setTimeout(() => {
-      localStorage.setItem("terminia_user", JSON.stringify({
-        email: formData.email,
-        name: formData.fullName,
-        company: formData.companyName,
-        vatNumber: formData.vatNumber,
-        sector: formData.sector,
-        size: formData.size,
-        city: formData.city,
-      }))
-      router.push("/onboarding")
-    }, 1000)
+
+    const formDataObj = new FormData()
+    formDataObj.append("email", formData.email)
+    formDataObj.append("password", formData.password)
+    formDataObj.append("fullName", formData.fullName)
+    formDataObj.append("companyName", formData.companyName)
+    formDataObj.append("vatNumber", formData.vatNumber)
+    formDataObj.append("sector", formData.sector)
+    formDataObj.append("size", formData.size)
+    formDataObj.append("city", formData.city)
+
+    const result = await signup(formDataObj)
+
+    if (result?.error) {
+      setError(result.error)
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -119,6 +126,16 @@ export default function RegisterPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400"
+          >
+            {error}
+          </motion.div>
+        )}
+
         {step === 1 ? (
           <>
             <div className="text-center mb-6">

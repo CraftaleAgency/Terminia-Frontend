@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "mcp__chrome-devtools__take_snapshot",
+      "Bash(pnpm run dev)"
+    ]
+  }
+}
