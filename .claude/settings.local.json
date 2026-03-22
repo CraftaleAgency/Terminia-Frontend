@@ -4,7 +4,18 @@
       "Bash(npm install:*)",
       "Bash(ls:*)",
       "mcp__chrome-devtools__take_snapshot",
-      "Bash(pnpm run dev)"
+      "Bash(pnpm run dev)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__navigate_page",
+      "Bash(npm run build)",
+      "mcp__chrome-devtools__take_screenshot",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "mcp__chrome-devtools__click",
+      "Bash(pnpm build)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }
