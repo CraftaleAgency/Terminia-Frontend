@@ -13,7 +13,7 @@ const navLinks = [
   { label: "Funzionalita", href: "#features" },
   { label: "Come Funziona", href: "#how-it-works" },
   { label: "BandoRadar", href: "#bandoradar" },
-  { label: "Prezzi", href: "#pricing" },
+  // { label: "Prezzi", href: "#pricing" },
 ]
 
 export function Navbar() {
@@ -43,16 +43,16 @@ export function Navbar() {
       >
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3" aria-label="TerminIA home">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="TerminIA home">
             <Image
               src="/images/terminia-logo.png"
               alt="TerminIA"
-              width={44}
-              height={44}
-              className="rounded-xl size-11 object-contain flex-shrink-0"
+              width={36}
+              height={36}
+              className="rounded-lg size-9 object-contain flex-shrink-0"
               loading="eager"
             />
-            <span className="text-gradient font-bold text-xl tracking-tight">TerminIA</span>
+            <span className="text-gradient font-bold text-lg tracking-tight">TerminIA</span>
           </Link>
 
           {/* Desktop nav */}

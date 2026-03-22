@@ -33,13 +33,13 @@ export function Hero() {
       {/* ContainerScroll with 3D dashboard */}
       <ContainerScroll
         titleComponent={
-          <div className="pt-28 md:pt-32 pb-8">
+          <div className="pt-20 md:pt-24 pb-6">
             {/* Main headline */}
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-[0.95] tracking-tight mb-8"
+              className="text-balance text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-semibold leading-[0.95] tracking-tight mb-6"
             >
               <span className="block text-foreground">Ogni scadenza.</span>
               <span className="block text-foreground">Ogni clausola.</span>
@@ -51,7 +51,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2 }}
-              className="mx-auto max-w-2xl text-balance text-xl md:text-2xl text-muted-foreground leading-relaxed mb-12"
+              className="mx-auto max-w-2xl text-balance text-lg md:text-xl text-muted-foreground leading-relaxed mb-8"
             >
               Lascia che l&apos;AI legga, capisca e protegga ogni contratto della tua azienda.
               Il co-pilota legale per le PMI italiane.
@@ -83,7 +83,7 @@ export function Hero() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.7, delay: 0.4 }}
-              className="text-sm text-muted-foreground/70 mb-16"
+              className="text-sm text-muted-foreground/70 mb-10"
             >
               Nessuna carta richiesta. Setup in 2 minuti.
             </motion.p>

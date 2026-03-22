@@ -1,0 +1,893 @@
+Ecco la spec completa e dettagliata per tutte le 19 pagine — pronta da incollare in Cursor, v0, Lovable o qualsiasi AI code generator.
+TERMINIA — Spec Completa Frontend
+19 Pagine — Descrizione Dettagliata per AI Code Generation
+PAGE 01 — /auth/login
+Nome: Login
+Descrizione generale:
+Pagina di accesso a Terminia. Layout centrato, sfondo scuro con gradiente, logo Terminia in cima. Nessuna sidebar. Form di login con email e password. Gestione errori inline. Link a registrazione e recupero password.
+Layout:
+  Pagina full-screen centrata verticalmente e orizzontalmente
+  Card bianca/dark centrata, max-width 400px
+  Logo Terminia sopra la card
+  Nessuna navbar, nessuna sidebar
+Componenti UI:
+  Input email con icona mail, validazione formato email
+  Input password con icona lucchetto, toggle mostra/nascondi password
+  Checkbox "Ricordami"
+  Button primario full-width "Accedi"
+  Link "Password dimenticata?" sotto il bottone
+  Divisore "oppure"
+  Button secondario "Continua con Google" con logo Google
+  Link in fondo "Non hai un account? Registrati"
+Comportamento:
+  Submit disabilitato se campi vuoti o email non valida
+  Loading spinner sul bottone durante la chiamata
+  Errore inline sotto il form se credenziali errate: "Email o password non corretti"
+  Su successo → redirect a /dashboard
+  Se primo accesso (no company configurata) → redirect a /onboarding
+Tabelle:
+  users — lettura per ottenere company_id e role post-login via Supabase Auth
+PAGE 02 — /auth/register
+Nome: Registrazione
+Descrizione generale:
+Wizard a 2 step per creare account e azienda. Step 1 dati personali, Step 2 dati aziendali. Barra progresso in cima. Al termine crea companies + users e redirect a /onboarding.
+Layout:
+  Stessa struttura di login — card centrata, no sidebar
+  Barra progresso con 2 step in cima alla card
+  Step indicator: "1. Il tuo account" → "2. La tua azienda"
+Step 1 — Dati personali:
+  Input Nome completo
+  Input Email
+  Input Password con requisiti visivi (8+ caratteri, maiuscola, numero)
+  Input Conferma password
+  Button "Continua →"
+Step 2 — Dati aziendali:
+  Input Nome azienda (obbligatorio)
+  Input Partita IVA con validazione formato IT (11 cifre) — badge verde/rosso inline
+  Select Settore (dropdown con settori principali)
+  Select Dimensione (micro / small / medium / large)
+  Input Città
+  Button "← Indietro" + Button "Crea account →"
+Comportamento:
+  Validazione P.IVA italiana in tempo reale (algoritmo di controllo cifra check)
+  Al submit step 2: INSERT companies → INSERT users con role = admin
+  Redirect automatico a /onboarding
+Tabelle:
+  companies — INSERT al completamento step 2
+  users — INSERT al completamento step 2
+PAGE 03 — /onboarding
+Nome: Onboarding Wizard
+Descrizione generale:
+Wizard guidato a 4 step per completare il profilo aziendale. Necessario per abilitare BandoRadar e il calcolo reliability score. Ogni step è salvabile — l'utente può uscire e riprendere. L'ultimo step è opzionale.
+Layout:
+  Layout full-page con sidebar sinistra che mostra i 4 step come checklist
+  Contenuto principale a destra con form
+  Step completati hanno spunta verde nella sidebar
+  Bottone "Salta per ora" in alto a destra su ogni step
+Step 1 — Profilo aziendale completo:
+  Input Codice ATECO con autocomplete (cerca per codice o descrizione)
+  Input PEC
+  Input Codice SDI (7 caratteri)
+  Input Indirizzo completo (via, CAP, città, provincia)
+  Input Codice Fiscale aziendale
+Step 2 — Profilo operativo (per BandoRadar):
+  Input Fatturato annuo (numerico, in €)
+  Input Numero dipendenti
+  Multi-select Certificazioni possedute (ISO 9001, ISO 27001, SOA, ecc.)
+  Multi-select Regioni di operatività (tutte le regioni italiane)
+  Toggle Ha esperienza con contratti PA? (sì/no)
+  Se sì: Input Valore contratti PA gestiti (€)
+Step 3 — Invita il team:
+  Lista dinamica di righe: Input email + Select ruolo (admin/manager/viewer)
+  Bottone "+ Aggiungi membro"
+  Possibile aggiungere fino a 5 membri nel MVP
+  Bottone "Invia inviti"
+Step 4 — Carica il primo contratto (opzionale):
+  Area drag & drop per PDF
+  Testo: "Carica un contratto per vedere Terminia in azione"
+  Badge "Opzionale — puoi farlo dopo"
+  Bottone "Salta e vai alla dashboard"
+  Bottone "Carica e analizza"
+Tabelle:
+  companies — UPDATE con tutti i dati completati
+  users — INSERT per ogni membro invitato
+  ai_interviews — INSERT se l'utente carica il primo contratto
+PAGE 04 — /dashboard
+Nome: Home Dashboard
+Descrizione generale:
+Centro di comando principale. Mostra lo stato dell'azienda in tempo reale. Prima cosa che vede l'utente ogni mattina. Tutto cliccabile — ogni widget porta alla pagina di dettaglio corrispondente.
+Layout:
+  Sidebar sinistra fissa con navigazione (presente in tutte le pagine /dashboard/*)
+  Area principale con:
+  KPI bar in cima (5 card orizzontali)
+  Grid 2 colonne con 5 widget
+  FAB button "+ Carica documento" fisso in basso a destra
+Sidebar navigazione (presente in tutte le pagine dashboard):
+text
+🏠 Dashboard 📄 Contratti 👥 Controparti 👤 Dipendenti 🧾 Fatture 🎯 BandoRadar 🔔 Alert 📝 Documenti 📊 Analytics ⚙️ Impostazioni
+  Avatar utente + nome azienda in fondo alla sidebar
+  Badge rosso con count su "Alert" se ci sono alert pending critici
+KPI Bar (5 card):
+ Contratti attivi — numero con icona contratto — link a /contracts?status=active
+ Valore portfolio — somma in € contratti attivi — formato abbreviato (es. €124k)
+ In scadenza 30gg — numero con badge arancione se > 0 — link a /contracts?expiring=30
+ Alert non gestiti — numero con badge rosso se critici — link a /alerts
+ Bandi match >80% — numero con badge verde — link a /bandi
+Widget 1 — Scadenze critiche (colonna sinistra, grande):
+  Titolo "Prossimi 7 giorni"
+  Lista max 5 items, ognuno con:
+  Icona tipo (contratto/obbligo/fattura/bando)
+  Titolo scadenza
+  Entità collegata (nome contratto o controparte)
+  Countdown in giorni (es. "tra 3 giorni") colorato: rosso <3gg, arancione <7gg
+  Link alla scheda
+  Se lista vuota: stato empty "Nessuna scadenza critica 🎉"
+Widget 2 — Alert attivi (colonna destra, medio):
+  Titolo "Alert non gestiti"
+  Lista max 5 alert per priorità decrescente
+  Per ogni alert: badge priorità colorato + titolo + bottone "Gestisci"
+  Link "Vedi tutti →" in fondo
+Widget 3 — BandoRadar Top Match (colonna sinistra, medio):
+  Titolo "Bandi compatibili"
+  3 card bando con: match score badge, titolo, ente, scadenza countdown, bottone "Valuta"
+  Link "Vedi tutti i bandi →"
+Widget 4 — Attività recente (colonna destra, piccolo):
+  Ultimi 5 contratti caricati/modificati
+  Per ognuno: titolo + data + status badge
+Widget 5 — Cashflow 30gg (colonna intera, piccolo):
+  2 numeri affiancati: "Da incassare € X" (verde) e "Da pagare € X" (rosso)
+  Link "Vai alle fatture →"
+Tabelle:
+  v\_dashboard\_kpi — KPI bar
+  v\_contracts\_expiring_soon — Widget scadenze
+  alerts — Widget alert (top 5 pending order by priority)
+  v\_bandi\_top_match — Widget BandoRadar
+  contracts — Widget attività recente
+  invoices — Widget cashflow (SUM amount_gross per status)
+PAGE 05 — /dashboard/contracts
+Nome: Lista Contratti
+Descrizione generale:
+Elenco completo di tutti i contratti aziendali. Due categorie principali: Commerciali (con controparti) e HR (con dipendenti). Vista tabella con filtri avanzati e ricerca.
+Layout:
+  Header con titolo "Contratti" + bottone "+ Nuovo contratto"
+  Barra filtri orizzontale
+  Toggle vista: Tabella / Kanban
+  Tabella principale
+  Paginazione in fondo (20 per pagina)
+Barra filtri:
+  Search input "Cerca contratto..." (full-text su titolo e reference_number)
+  Select Tipo: Tutti / Commerciali / HR
+  Select Status: Tutti / Bozza / Negoziazione / Attivo / In scadenza / Rinnovato / Terminato
+  Select Controparte (dropdown searchable)
+  DateRangePicker Scadenza tra
+  Slider Risk score min
+  Bottone "Azzera filtri"
+Vista Tabella — Colonne:
+Colonna
+Dettaglio
+Titolo
+Testo + sottotitolo tipo contratto
+Controparte/Dipendente
+Nome con link a scheda
+Valore
+Importo in € con frequenza (mensile/totale)
+Inizio → Fine
+Date con barra progresso percentuale
+Status
+Badge colorato
+Risk Score
+Badge colorato (verde <30, giallo 30-60, rosso >60)
+Rinnovo auto
+Icona verde se attivo + giorni disdetta rimasti
+Azioni
+Menu: Visualizza / Modifica / Duplica / Archivia
+Vista Kanban:
+  Colonne: Bozza / Negoziazione / Attivo / In scadenza / Terminato
+  Card con: titolo, controparte, valore, scadenza
+  Drag & drop per cambiare status
+Comportamento:
+  Click su riga → apre /dashboard/contracts/\[id\]
+  Bottone "+ Nuovo contratto" → apre /dashboard/contracts/new
+  Bottone "Export CSV" in alto a destra
+  Infinite scroll o paginazione
+Tabelle:
+  contracts — lista principale
+  counterparts — nome controparte (JOIN)
+  employees — nome dipendente (JOIN)
+PAGE 06 — /dashboard/contracts/\[id\]
+Nome: Scheda Contratto
+Descrizione generale:
+Pagina di dettaglio di un singolo contratto. La pagina più ricca dell'app. Header fisso con info principali e azioni, corpo con sistema a tab per separare le diverse aree informative.
+Layout:
+  Header sticky con: titolo, status badge, risk score badge, data fine + countdown, bottoni azioni
+  Sistema a tab sotto l'header
+  Sidebar destra fissa (su desktop) con info controparte/dipendente e alert
+Header:
+  Titolo contratto (grande)
+  Breadcrumb: Contratti > [Titolo]
+  Badge status colorato
+  Badge risk score (es. "Rischio: 72/100" in rosso)
+  Countdown scadenza (es. "Scade tra 45 giorni" in arancione)
+  Bottoni azioni: [Modifica] [Genera documento ▼] [⋮ Altro]
+  Menu "Genera documento": Disdetta / Rinnovo / Sollecito pagamento
+Tab 1 — Riepilogo AI:
+  Box azzurro con sommario AI in linguaggio naturale (ai_summary)
+  Grid dati economici:
+  Valore contratto + tipo (totale/annuale/mensile)
+  Termini di pagamento (es. "30 giorni data fattura")
+  Regime IVA + aliquota
+  Ritenuta d'acconto se presente
+  Grid date critiche:
+  Data firma, inizio, fine
+  Countdown scadenza con colore
+  Se auto-renewal: "Disdetta entro il [data]" in rosso se entro 30gg
+  Box fidejussione (se surety_bond_required = true):
+  Importo, scadenza, emittente
+  Box rinnovo automatico (se auto_renewal = true):
+  Durata rinnovo, giorni preavviso, deadline disdetta calcolata
+Tab 2 — Clausole:
+  Filtro per tipo clausola + filtro risk level
+  Lista clausole, per ognuna:
+  Header: tipo clausola + risk level badge (low/medium/high/critical)
+  Testo originale (collassabile)
+  Testo semplificato AI (in evidenza)
+  Se ai_flag presente: box warning con spiegazione e suggerimento AI
+  Confronto benchmark (se benchmark_comparison presente)
+  Se nessuna clausola estratta: banner "Analisi clausole in corso..." con spinner
+Tab 3 — Obblighi:
+  Toggle "Miei obblighi" / "Obblighi loro"
+  Lista obblighi, per ognuno:
+  Descrizione obbligo
+  Tipo badge (pagamento/consegna/notifica/ecc.)
+  Data scadenza con countdown
+  Ricorrenza se presente (mensile/trimestrale/annuale)
+  Status badge (pending/completed/overdue/waived)
+  Se pending: bottone "Segna completato" → modal con nota
+  Se overdue: row con background rosso chiaro
+  Bottone "+ Aggiungi obbligo manuale"
+Tab 4 — Milestone:
+  Timeline verticale delle milestone ordinate per data
+  Per ogni milestone:
+  Titolo + descrizione
+  Data scadenza con countdown
+  Importo se presente
+  Status badge (upcoming/in_progress/delivered/approved/invoiceable/invoiced)
+  Se status = invoiceable: bottone "Genera fattura" → crea fattura pre-compilata
+  Se requires_approval: mostra contatto approvazione
+  Bottone "+ Aggiungi milestone"
+Tab 5 — Documenti:
+  Lista file allegati con: nome file, tipo badge, versione, data upload, chi ha caricato
+  Badge "Corrente" sul documento principale
+  Bottone download per ogni file
+  Bottone "+ Carica documento"
+  Per documenti con firma: badge stato firma (pending/signed) + provider
+Tab 6 — Fatture:
+  Lista fatture collegate al contratto
+  Stessa UI della pagina /invoices ma filtrata per questo contratto
+  KPI mini: totale fatturato vs valore contratto (barra progresso %)
+  Bottone "+ Nuova fattura"
+Tab 7 — Storico negoziazione:
+  Timeline eventi di negoziazione in ordine cronologico
+  Per ogni evento: tipo, chi ha iniziato (noi/controparte), descrizione, data
+  Bottone "+ Aggiungi evento"
+Tab 8 — GDPR:
+  Se gdpr_records presente: mostra tutti i campi (categorie dati, finalità, retention)
+  Se DPA firmato: badge verde con data
+  Se DPA mancante e controparte tratta dati: banner warning rosso
+  Bottone "Genera DPA GDPR"
+Sidebar destra:
+  Card controparte/dipendente con: nome, tipo, reliability score badge, link a scheda
+  Lista alert attivi collegati a questo contratto (max 3)
+  Lista contratti correlati (parent, addendum, rinnovi)
+Tabelle:
+  contracts — dati principali
+  clauses — tab clausole
+  obligations — tab obblighi
+  milestones — tab milestone
+  contract_documents — tab documenti
+  invoices — tab fatture
+  negotiation_events — tab storico
+  gdpr_records — tab GDPR
+  alerts — sidebar
+  counterparts — sidebar
+  employees — sidebar
+PAGE 07 — /dashboard/contracts/new
+Nome: Upload AI / Nuovo Contratto
+Descrizione generale:
+Pagina per aggiungere un nuovo contratto. Due modalità: upload PDF (analisi AI automatica) o creazione manuale. Il flusso AI include un sistema di intervista per disambiguare il documento.
+Layout:
+  Pagina con due tab in cima: "Carica PDF" e "Crea manuale"
+  Contenuto centrato, max-width 700px
+Tab "Carica PDF":
+  Area drag & drop grande con icona PDF
+  Testo: "Trascina il contratto qui o clicca per selezionare"
+  Formati accettati: PDF, DOCX
+  Dopo upload: barra progresso "Analisi in corso..."
+  Risultato analisi AI:
+  Classificazione rilevata (es. "Contratto di fornitura servizi") con confidence %
+  Se confidence > 85%: mostra classificazione con bottone "Conferma e continua"
+  Se confidence < 85%: mostra domande AI per disambiguare
+  Intervista AI (se necessaria):
+  Domanda in linguaggio naturale (es. "Questo contratto riguarda un fornitore o un dipendente?")
+  Risposte come bottoni/radio — non form testuali
+  Max 5 domande
+  Preview dati estratti prima del salvataggio:
+  Titolo rilevato, tipo, controparte rilevata, valore, date
+  Ogni campo modificabile inline
+  Bottone "Salva e analizza clausole"
+Tab "Crea manuale":
+  Select Tipo contratto (dropdown con tutti i tipi)
+  Radio Attore: Controparte / Dipendente
+  Se Controparte: Select searchable da counterparts + bottone "+ Nuova controparte"
+  Se Dipendente: Select searchable da employees + bottone "+ Nuovo dipendente"
+  Input Titolo contratto
+  Input Numero riferimento
+  Select Status (default: draft)
+  Sezione "Dati economici" (collassabile):
+  Input Valore + Select tipo valore
+  Input Termini pagamento (giorni)
+  Select Frequenza pagamento
+  Select Regime IVA + Input aliquota IVA
+  Toggle Ritenuta d'acconto + Input aliquota
+  Sezione "Date" (collassabile):
+  DatePicker inizio, fine, firma, efficacia
+  Toggle Rinnovo automatico → se attivo: Input preavviso giorni + Input durata rinnovo
+  Sezione "Note e tag" (collassabile)
+  Bottone "Salva contratto"
+Tabelle:
+  ai_interviews — INSERT per ogni sessione upload
+  contracts — INSERT finale
+  counterparts — INSERT se nuova controparte rilevata
+  employees — INSERT se nuovo dipendente rilevato
+  clauses — INSERT post-analisi AI
+  obligations — INSERT post-analisi AI
+  contract_documents — INSERT file originale
+PAGE 08 — /dashboard/counterparts
+Nome: Lista Controparti
+Descrizione generale:
+Elenco di tutti i fornitori, clienti e partner con reliability score prominente. Prima cosa da controllare prima di firmare un nuovo contratto.
+Layout:
+  Header con titolo "Controparti" + bottone "+ Nuova controparte"
+  Tab orizzontali: Tutti / Fornitori / Clienti / Partner (con count per tab)
+  Barra ricerca + filtri
+  Tabella
+Barra filtri:
+  Search "Cerca per nome, P.IVA..."
+  Select Affidabilità: Tutti / Excellent / Good / Warning / Risk / Unknown
+  Select Paese
+  Select Settore
+Tabella — Colonne:
+Colonna
+Dettaglio
+Nome
+Nome + città in sottotitolo
+Tipo
+Badge: Fornitore/Cliente/Partner
+P.IVA
+Testo
+Referente
+Nome + email
+Reliability
+Score numerico + badge colorato + label
+Contratti attivi
+Numero con link
+Esposizione
+€ totale contratti attivi con questa controparte
+Ultima verifica
+Data + bottone "Aggiorna" se > 30gg
+Azioni
+Visualizza / Modifica / Nuova verifica
+Reliability Score Badge:
+  80-100: verde "Eccellente"
+  60-79: verde chiaro "Buono"
+  40-59: giallo "Attenzione"
+  20-39: arancione "Rischio"
+  0-19: rosso "Critico"
+  null: grigio "Non verificato"
+Tabelle:
+  counterparts — lista principale
+  contracts — count contratti attivi (subquery)
+PAGE 09 — /dashboard/counterparts/\[id\]
+Nome: Scheda Controparte
+Descrizione generale:
+Profilo completo di un fornitore/cliente/partner. Mostra tutto quello che c'è da sapere prima di firmare o durante la gestione del rapporto.
+Layout:
+  Header con: nome azienda, tipo badge, reliability score grande con semaforo colorato
+  Sistema a tab
+  Sidebar destra con alert attivi
+Header:
+  Nome azienda (H1)
+  Badge tipo (Fornitore/Cliente/Partner)
+  Reliability score grande: numero + label + data ultimo aggiornamento
+  Semaforo visivo (3 cerchi: rosso/giallo/verde)
+  Bottoni: [Modifica] [Nuova verifica OSINT] [+ Nuovo contratto]
+Tab 1 — Anagrafica:
+  Grid dati: P.IVA, CF, PEC, SDI, indirizzo completo, settore
+  Card referente principale: nome, email, telefono
+  Note libere
+  Tag associati
+Tab 2 — Verifica OSINT:
+  5 card dimensioni score (legale, contributiva, reputazione, solidità, coerenza)
+  Per ogni dimensione: score 0-100 + spiegazione + fonte + data check
+  Badge speciali:
+  🔴 "Procedura fallimentare rilevata" se has_bankruptcy = true
+  🔴 "Annotazioni ANAC" se has_anac_annotations = true
+  ✅ "P.IVA verificata" se vat_verified = true
+  Mini chart storico score nel tempo (line chart)
+  JSON verifica raw (collassabile, per utenti avanzati)
+  Bottone "Avvia nuova verifica" → loading + aggiornamento
+Tab 3 — Contratti:
+  Lista tutti i contratti con questa controparte
+  Stessa UI della lista contratti ma pre-filtrata
+  KPI: valore totale attivo, numero contratti
+Tab 4 — Fatture e Pagamenti:
+  Lista fatture collegate
+  Mini grafico: puntualità pagamenti (% pagate in tempo negli ultimi 12 mesi)
+  Payment avg days con confronto: "Media settore: 45gg — Questo cliente: 62gg ⚠️"
+Sidebar:
+  Alert attivi collegati a questa controparte
+Tabelle:
+  counterparts — dati e verifica
+  contracts — tab contratti
+  invoices — tab fatture
+  payment_records — metriche pagamento
+  alerts — sidebar
+PAGE 10 — /dashboard/employees
+Nome: Lista Dipendenti
+Descrizione generale:
+Elenco di tutti i dipendenti e collaboratori con focus sulle scadenze compliance in evidenza. Permette di capire a colpo d'occhio chi ha scadenze imminenti.
+Layout:
+  Header con titolo "Dipendenti" + bottone "+ Nuovo dipendente"
+  KPI bar: Totale dipendenti / Costo lavoro mensile / Scadenze compliance 30gg
+  Tab: Tutti / Dipendenti / Collaboratori / Consulenti / Stage / P.IVA
+  Barra ricerca + filtri
+  Tabella
+KPI Bar:
+  Totale attivi — count dove termination_date IS NULL
+  Costo lavoro mensile — SUM gross_cost
+  Scadenze compliance — count dove medical_exam_date o safety_training_date < TODAY + 30gg (badge rosso)
+Filtri:
+  Search per nome
+  Select Dipartimento
+  Select Tipo contratto
+  Toggle "Solo scadenze compliance" (filtra chi ha qualcosa in scadenza)
+Tabella — Colonne:
+Colonna
+Dettaglio
+Nome
+Nome + avatar placeholder
+Tipo
+Badge tipo contratto
+Ruolo / Dipartimento
+Testo
+Data assunzione
+Data formattata
+CCNL / Livello
+Testo
+RAL
+€ formattato
+Periodo di prova
+Badge "In prova" se probation_end_date > TODAY
+Compliance
+Badge verde OK / Badge rosso con icona se scadenza entro 30gg
+Azioni
+Visualizza / Modifica
+Tabelle:
+  employees — lista principale
+  contracts — tipo CCNL e stato contratto (JOIN su current_contract_id)
+PAGE 11 — /dashboard/employees/\[id\]
+Nome: Scheda Dipendente
+Descrizione generale:
+Profilo completo di un dipendente. Anagrafica, contratto corrente, storico contrattuale, compliance e documenti.
+Layout:
+  Header con nome, ruolo, tipo contratto, stato (Attivo/Cessato)
+  Sistema a tab
+  Sidebar con alert compliance
+Header:
+  Nome dipendente (H1) + avatar placeholder
+  Badge tipo contratto (es. "Dipendente — Tempo indeterminato")
+  Badge "In prova fino al [data]" se attivo — countdown giorni
+  Badge "Cessato il [data]" se termination_date presente
+  Bottoni: [Modifica] [Genera documento ▼]
+Tab 1 — Anagrafica:
+  Grid: CF con badge validità, data e luogo nascita, residenza, email, telefono, IBAN
+  Badge validità CF: ✅ valido / ❌ non valido / ⚠️ non corrisponde al nome
+  Badge validità IBAN: ✅ / ❌
+  Checkbox OSINT consent con data consenso
+Tab 2 — Contratto corrente:
+  Card CCNL: nome CCNL, livello, data versione
+  Grid economico: RAL, costo aziendale, preavviso giorni
+  Grid benefit:
+  Buono pasto giornaliero (€)
+  Auto aziendale (sì/no)
+  Telefono aziendale (sì/no)
+  Budget welfare (€)
+  Altri benefit (da JSON)
+  Periodo di prova: date inizio/fine + countdown se attivo
+  Link "Vedi contratto completo →" → /contracts/[current_contract_id]
+Tab 3 — Storico contratti:
+  Lista tutti i contratti (inclusi precedenti)
+  Per contratti a termine: badge con numero progressivo
+  Warning box se: fixed_term_count >= 4 OR fixed_term_months >= 24
+  Testo: "⚠️ Attenzione: limite contratti a termine D.Lgs 81/2015 prossimo"
+Tab 4 — Compliance:
+  Card "Visita medica": data ultima + scadenza prossima + countdown colorato
+  Card "Formazione sicurezza": data ultima + scadenza prossima + countdown colorato
+  Per ognuna: bottone "Aggiorna data"
+  Se scaduta: card con background rosso chiaro + alert inline
+Tab 5 — Documenti:
+  Lista file allegati (contratto firmato, documenti identità, buste paga, ecc.)
+  Upload nuovo documento
+  Download / anteprima
+Sidebar:
+  Alert compliance attivi per questo dipendente
+Tabelle:
+  employees — dati principali
+  contracts — contratto corrente e storico
+  contract_documents — documenti
+  alerts — sidebar compliance
+PAGE 12 — /dashboard/invoices
+Nome: Fatture
+Descrizione generale:
+Registro fatture attive (emesse) e passive (ricevute). Nessuna generazione XML o SDI nel MVP — solo registrazione manuale e tracciamento stato pagamento. L'obiettivo è dare all'utente una visione chiara del cashflow.
+Layout:
+  Header con titolo "Fatture" + bottone "+ Aggiungi fattura"
+  Toggle "Emesse (Attive)" / "Ricevute (Passive)"
+  KPI bar con 3 card
+  Barra filtri
+  Tabella
+KPI Bar (cambiano con il toggle):
+  Per Emesse: Da incassare (unpaid+overdue) / Incassato (paid) / Scadute (overdue in rosso)
+  Per Ricevute: Da pagare (unpaid+overdue) / Pagato (paid) / Scadute (overdue in rosso)
+Filtri:
+  Search per numero fattura o nome controparte
+  Select Status: Tutti / In attesa / Scaduta / Pagata
+  Select Controparte
+  DateRangePicker scadenza
+Tabella — Colonne:
+Colonna
+Dettaglio
+N. Fattura
+Numero + link a scheda
+Cliente/Fornitore
+Nome con link a scheda controparte
+Contratto
+Titolo contratto se collegato
+Data emissione
+Data formattata
+Scadenza
+Data + countdown se non pagata
+Importo netto
+€
+IVA
+% + €
+Totale lordo
+€ in grassetto
+Status
+Badge: In attesa (grigio) / Scaduta (rosso) / Pagata (verde)
+Azioni
+Visualizza / Segna pagata / Scarica PDF
+Status automatico:
+  unpaid → grigio "In attesa" se due_date >= TODAY
+  overdue → rosso "Scaduta" se due_date < TODAY e non pagata
+  paid → verde "Pagata" sempre
+Modal "+ Aggiungi fattura":
+  Select Tipo: Emessa / Ricevuta
+  Select Cliente/Fornitore (da counterparts, searchable)
+  Select Contratto collegato (opzionale, filtrato per controparte selezionata)
+  Input Numero fattura
+  DatePicker Data emissione
+  DatePicker Scadenza (default: data + 30 giorni)
+  Input Importo netto (€)
+  Select IVA % (default: 22%, opzioni: 0%, 4%, 5%, 10%, 22%)
+  Display readonly: Importo IVA e Totale lordo (calcolati auto)
+  Textarea Note (opzionale)
+  Bottone "Salva fattura"
+Comportamento "Segna come pagata":
+  Click su bottone → mini modal con solo DatePicker "Data pagamento"
+  Conferma → UPDATE payment_status = 'paid', payment_date = data inserita
+Tabelle:
+  invoices — lista principale + INSERT/UPDATE
+  counterparts — nome controparte (JOIN)
+  contracts — titolo contratto (JOIN opzionale)
+  payment_records — INSERT quando si segna pagata
+PAGE 13 — /dashboard/invoices/\[id\]
+Nome: Scheda Fattura
+Descrizione generale:
+Dettaglio di una singola fattura con tutti i calcoli, lo stato e la gestione pagamento.
+Layout:
+  Header con numero fattura, status badge, azioni
+  Grid dati principali
+  Timeline stato in fondo
+Header:
+  "Fattura #[numero]" (H1)
+  Badge status grande
+  Bottoni: [Modifica] [Segna pagata] [Scarica PDF] [Elimina]
+Sezione principale (grid 2 colonne):
+  Colonna sinistra "Dati fattura":
+  Data emissione, data scadenza
+  Contratto collegato (link)
+  Note
+  Colonna destra "Importi":
+  Importo netto
+  IVA (% e €)
+  Totale lordo (grande, in evidenza)
+  Se ritenuta: riga ritenuta (- €X) e importo netto da pagare
+  Card controparte: nome, P.IVA, PEC, SDI
+Timeline stato:
+  Creata → Scadenza → (Scaduta se overdue) → Pagata
+  Step attivo evidenziato con colore
+  Date sotto ogni step
+Tabelle:
+  invoices — dati principali
+  counterparts — dati controparte
+  contracts — contratto collegato
+  milestones — milestone collegata se presente
+  payment_records — INSERT quando pagata
+  companies — dati azienda emittente
+PAGE 14 — /dashboard/bandi
+Nome: BandoRadar
+Descrizione generale:
+Il motore di ricerca intelligente dei bandi pubblici. Mostra i bandi compatibili con il profilo aziendale, aggiornati ogni 24 ore, ordinati per match score.
+Layout:
+  Header con titolo "BandoRadar" + data ultimo aggiornamento + bottone "Aggiorna ora"
+  KPI bar 4 card
+  Barra filtri avanzata
+  Lista bandi (card o tabella, toggle)
+KPI Bar:
+  Bandi trovati oggi — count scraped_at = TODAY
+  Match >80% — count match_score >= 80 e is_active = true
+  Scadono in 7gg — count deadline <= TODAY + 7
+  Sto partecipando — count participation_status IN ('participating','submitted')
+Filtri:
+  Slider Match score minimo (0-100, default: 50)
+  Multi-select Fonte: ANAC / TED / Invitalia / MIMIT / Regioni
+  Select Categoria: Servizi / Beni / Lavori / Misto
+  RangePicker Valore base d'asta
+  Select Scadenza entro: 7gg / 30gg / 90gg / Tutti
+  Select Status partecipazione: Tutti / Nuovo / Salvato / In valutazione / Partecipando
+Card bando (vista card):
+text
+┌────────────────────────────────────────┐ │
+Scade tra 12 giorni
+│ │                                        │ │ Titolo bando (max 2 righe)             │ │ Ente: Comune di Milano                 │ │                                        │ │ 💰 Base d'asta: € 240.000              │ │ 📋 Servizi — Procedura aperta          │ │                                        │ │ Match Score:
+82%          │ │                                        │ │
+│ └────────────────────────────────────────┘
+Match score badge colori:
+  80-100: verde
+  60-79: giallo
+  40-59: arancione
+  <40: grigio
+Tabelle:
+  v\_bandi\_top_match — lista principale
+  bandi — con tutti i filtri applicati
+  companies — profilo per confronto (readonly)
+PAGE 15 — /dashboard/bandi/\[id\]
+Nome: Scheda Bando
+Descrizione generale:
+Dettaglio completo di un bando con tutto il necessario per decidere se e come partecipare. La pagina più strategica del modulo BandoRadar.
+Layout:
+  Header sticky con titolo, ente, match score, countdown scadenza, status partecipazione
+  Sistema a tab
+  Sidebar destra con azioni e note interne
+Header:
+  Titolo bando (H1)
+  Ente + tipo ente badge
+  Match score grande con colore
+  Countdown scadenza (es. "⏰ Scade tra 8 giorni")
+  Status partecipazione select inline (cambia direttamente): Nuovo / Salvato / In valutazione / Partecipando / Vinto / Perso / Ritirato
+  Link "Vai alla fonte originale →" (source_url)
+Tab 1 — Dettaglio:
+  Grid: CIG, CUP, fonte, tipo procedura, categoria contratto
+  Grid: Base d'asta, valore stimato, numero lotti
+  Grid date: pubblicazione, scadenza, sopralluogo, chiarimenti, aggiudicazione prevista
+  CPV codes con descrizione estesa
+  NUTS code (area geografica)
+  Criteri aggiudicazione: prezzo minimo / offerta economicamente vantaggiosa
+  Documenti tecnici: link se disponibile
+Tab 2 — Analisi Match:
+  Spiegazione testuale AI del match score (match_explanation)
+  Grafico radar o barre con 5 dimensioni:
+  Settore ATECO (score_sector)
+  Dimensione azienda (score_size)
+  Area geografica (score_geo)
+  Requisiti tecnici (score_requirements)
+  Fattibilità (score_feasibility)
+  Per ogni dimensione: spiegazione breve del punteggio
+Tab 3 — Gap Analysis:
+  Lista requisiti estratti dal bando
+  Per ogni requisito: status con icona
+  ✅ verde — "Soddisfatto" (azienda ha il requisito)
+  ⚠️ giallo — "Parzialmente soddisfatto"
+  ❌ rosso — "Mancante"
+  ❓ grigio — "Da verificare"
+  Per ogni gap: suggerimento AI su come colmarlo
+  Sezione "Subappalto": se subappalto_allowed = true, mostra % max e suggerimento su quali gap coprire con subappalto
+  Sezione "RTI": se rti_allowed = true, suggerimento su formazione RTI
+Tab 4 — Checklist documenti:
+  Lista documenti necessari per partecipare
+  Per ogni documento: checkbox + nome + come ottenerlo + tempo stimato
+  Barra progresso "Documenti pronti: 3/8"
+  Bottone "Segna come pronto" per ogni documento
+  I checkbox sono persistenti (salvati in checklist_json)
+Tab 5 — Lotti:
+  Visibile solo se lot_count > 1
+  Lista lotti da lots_json con: numero, descrizione, valore, requisiti specifici
+Tab 6 — Competitor:
+  Titolo "Storico aggiudicazioni simili"
+  Lista da bandi_competitor_awards filtrata per CPV simile
+  Per ogni aggiudicazione: ente, anno, aggiudicatario, valore, ribasso %
+  Insight AI: "Il ribasso medio in questo CPV è X% — la tua offerta dovrebbe considerare..."
+Sidebar:
+  Box "Azioni":
+  Select status partecipazione
+  Bottone "Ho vinto → Genera contratto" (visibile se status = won)
+  Box "Note interne": textarea libera (internal_notes)
+  Lista alert collegati a questo bando
+Tabelle:
+  bandi — dati principali
+  bandi\_competitor\_awards — tab competitor
+  alerts — sidebar
+  contracts — INSERT se bando vinto
+  companies — gap analysis (profilo aziendale)
+PAGE 16 — /dashboard/alerts
+Nome: Centro Alert
+Descrizione generale:
+Tutti gli alert del sistema in un unico posto. Ordinati per priorità. Ogni alert è gestibile senza uscire dalla pagina.
+Layout:
+  Header con titolo "Alert" + KPI badge count per priorità
+  Barra filtri
+  Lista alert raggruppata per priorità
+KPI header:
+  Critici badge rosso / Alti badge arancione / Medi badge giallo / Bassi badge grigio
+Filtri:
+  Select Priorità: Tutti / Critico / Alto / Medio / Basso
+  Select Tipo: dropdown con tutti i 25+ tipi alert
+  Select Modulo: Contratti / HR / Bandi / Finance
+  Select Status: In attesa / Posticipato / Gestito / Archiviato
+  DateRangePicker Data trigger
+Lista alert — raggruppata per priorità:
+  Sezione "🔴 Critici" — espansa di default
+  Sezione "🟠 Alti" — espansa di default
+  Sezione "🟡 Medi" — collassata di default
+  Sezione "⚪ Bassi" — collassata di default
+Card alert:
+text
+┌────────────────────────────────────────────────┐ │ 🔴 CRITICO                      📅 Oggi, 14:30 │ │                                                │ │ Contratto in scadenza — Rinnovo automatico     │ │ Contratto: Fornitura IT con Rossi Srl          │ │ Disdetta entro: 15 aprile 2026 (tra 3 giorni)  │ │                                                │ │
+│ └────────────────────────────────────────────────┘
+Modal "Gestisci alert":
+  Titolo alert (readonly)
+  Textarea "Nota di gestione" (obbligatoria)
+  Select "Assegna a" (altri utenti del team — escalation)
+  Bottone "Segna come gestito"
+Modal "Posticipa":
+  DatePicker "Posticipa fino a"
+  Bottone "Conferma"
+Selezione multipla:
+  Checkbox su ogni alert
+  Barra azioni bulk: "Gestisci selezionati" / "Posticipa selezionati"
+Tabelle:
+  alerts — lista completa con UPDATE per gestione
+  contracts — link al contratto
+  counterparts — link alla controparte
+  employees — link al dipendente
+  bandi — link al bando
+  milestones — link alla milestone
+  invoices — link alla fattura
+  users — escalation a utente
+PAGE 17 — /dashboard/documents
+Nome: Generatore Documenti
+Descrizione generale:
+Genera lettere e comunicazioni formali pre-compilate usando i dati già presenti nel sistema. L'utente sceglie il tipo di documento, il destinatario, e ottiene un testo professionale pronto in 60 secondi.
+Layout:
+  Header con titolo "Documenti"
+  Due tab: "Genera nuovo" / "Storico documenti"
+Tab "Genera nuovo" — Wizard 4 step:
+Step 1 — Scegli tipo:
+  Grid di card selezionabili divise per categoria:
+  COMMERCIALI: Sollecito pagamento / Disdetta contratto / Proposta rinnovo
+  HR: Lettera assunzione / Lettera proroga / Lettera licenziamento
+  Click su card → seleziona e passa a step 2
+Step 2 — Scegli destinatario:
+  Se documento commerciale: Search controparte → mostra contratti attivi con quella controparte → seleziona contratto di riferimento
+  Se documento HR: Search dipendente → mostra contratto corrente
+  Bottone "Continua →"
+Step 3 — Dati pre-compilati:
+  Preview dei dati che verranno usati nel documento:
+  Dati mittente (dalla company)
+  Dati destinatario (dalla controparte o dipendente)
+  Dati contratto (valore, date, clausole rilevanti)
+  Campi specifici per tipo (es. per sollecito: fattura scaduta + giorni ritardo)
+  Tutti i campi sono modificabili inline se l'utente vuole personalizzare
+  Bottone "Genera documento →"
+Step 4 — Preview e download:
+  Testo documento generato in un box stile "anteprima lettera" (font serif, aspetto formale)
+  Intestazione azienda simulata in cima
+  Bottone "Scarica PDF" (primario)
+  Bottone "Salva nello storico"
+  Bottone "← Ricomincia"
+Tab "Storico documenti":
+  Tabella con: tipo documento, destinatario, data generazione, bottone "Riscarica PDF"
+  Filtro per tipo e data
+Tabelle:
+  generated_documents — INSERT + lista storico
+  contracts — dati per pre-compilazione
+  counterparts — dati destinatario commerciale
+  employees — dati destinatario HR
+  companies — dati mittente
+  invoices — fattura scaduta per sollecito pagamento
+PAGE 18 — /dashboard/analytics
+Nome: Analytics
+Descrizione generale:
+Dashboard analitica con trend storici e KPI aggregati. Permette di capire l'andamento del business contrattuale nel tempo. Solo lettura — nessuna azione.
+Layout:
+  Header con titolo "Analytics" + DateRangePicker periodo (default: ultimi 12 mesi)
+  Grid di sezioni con grafici
+Sezione 1 — Portfolio contratti:
+  Line chart: valore portfolio contratti attivi nel tempo
+  Donut chart: distribuzione per tipo contratto
+  Bar chart: contratti per status
+  Stat: risk score medio portfolio
+Sezione 2 — Cashflow:
+  Bar chart grouped: fatture emesse vs incassate per mese
+  Line chart: andamento importi scaduti nel tempo
+  Stat: payment avg days per top 5 clienti (tabella)
+Sezione 3 — HR:
+  Donut chart: distribuzione dipendenti per tipo contratto
+  Stat: costo lavoro totale mensile
+  Bar chart: scadenze compliance per mese (quante visite mediche, quante formazioni)
+Sezione 4 — BandoRadar:
+  Bar chart: bandi trovati per mese per fonte
+  Funnel: Trovati → Salvati → In valutazione → Partecipato → Vinto
+  Stat: valore totale bandi vinti
+Filtri globali:
+  DateRangePicker (cambia tutti i grafici)
+  Select Controparte (filtra sezione cashflow per controparte specifica)
+Tabelle:
+  contracts — aggregazioni portfolio
+  invoices — cashflow e fatturato
+  payment_records — puntualità incassi
+  employees — distribuzione e costi
+  bandi — statistiche BandoRadar
+PAGE 19 — /dashboard/settings
+Nome: Impostazioni
+Descrizione generale:
+Configurazione completa dell'account aziendale. Divisa in tab per area tematica.
+Layout:
+  Header "Impostazioni"
+  Tab verticali a sinistra: Azienda / Team / Notifiche / Profilo
+Tab "Azienda":
+  Form con tutti i campi companies:
+  Dati anagrafici (nome, P.IVA, CF, settore, dimensione)
+  Dati fatturazione (SDI, PEC)
+  Indirizzo
+  Upload logo aziendale
+  Sezione "Profilo BandoRadar":
+  ATECO code, certificazioni multi-select, regioni operative multi-select
+  Toggle esperienza PA + valore stimato
+  Bottone "Salva modifiche"
+Tab "Team":
+  Lista membri attuali con: avatar, nome, email, ruolo badge, bottone "Cambia ruolo" / "Rimuovi"
+  Form "Invita membro": input email + select ruolo + bottone "Invia invito"
+  Lista inviti in attesa con bottone "Revoca invito"
+Tab "Notifiche":
+  Tabella per ogni tipo di alert:
+  Nome alert
+  Toggle "Email" (on/off)
+  Toggle "In-app" (on/off)
+  Input "Anticipo giorni" (es. avvisami 30 giorni prima della scadenza)
+  Gruppi: Contratti / HR / Bandi / Finance
+  Bottone "Salva preferenze"
+Tab "Profilo":
+  Input nome completo
+  Input email (readonly — cambia via Supabase Auth)
+  Upload avatar
+  Bottone "Cambia password" → modal con vecchia e nuova password
+  Select lingua (IT/EN)
+  Bottone "Salva"
+Tabelle:
+  companies — UPDATE dati azienda e profilo BandoRadar
+  users — UPDATE profilo, INSERT per inviti, DELETE per rimozioni
+Note Generali per il Code Generator
+text
+STACK TECNICO: \- Framework: Next.js 14+ App Router \- Auth: Supabase Auth con middleware \- DB: Supabase PostgreSQL con RLS attiva \- Styling: Tailwind CSS + shadcn/ui \- Charts: Recharts o Chart.js \- PDF: react-pdf o jsPDF \- Form: React Hook Form + Zod validation \- State: Zustand o React Context   LAYOUT GLOBALE /dashboard/*: \- Sidebar sinistra fissa 240px \- Area main con padding 24px \- Responsive: sidebar collassabile su mobile \- Header di ogni pagina: titolo + azioni primarie   PATTERN DATI: \- Ogni SELECT usa: WHERE company\_id = auth\_company_id() \- Paginazione: 20 items per pagina di default \- Loading states: skeleton UI (non spinner globale) \- Empty states: illustrazione + testo + CTA per ogni lista vuota \- Error states: toast notification per errori API   COLORI STATUS: \- draft/pending/unknown → grigio \- active/good/paid/completed → verde \- expiring/warning/overdue → arancione/giallo \- terminated/risk/critical → rosso \- negotiating/in_progress → blu
