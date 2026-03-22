@@ -3,6 +3,7 @@
 import { Bell, Search, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
 import { getAlerts } from "@/lib/mock-data"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 export function DashboardHeader() {
   const [unreadCount, setUnreadCount] = useState(0)
@@ -31,6 +32,9 @@ export function DashboardHeader() {
 
       {/* Right section */}
       <div className="flex items-center gap-4">
+        {/* Theme toggle */}
+        <ThemeToggle />
+        
         {/* Alerts */}
         <button className="relative p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all">
           <Bell className="size-5" />

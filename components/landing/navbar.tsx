@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 const navLinks = [
   { label: "Funzionalita", href: "#features" },
@@ -68,6 +69,7 @@ export function Navbar() {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             <Link
               href="/auth/login"
               className="text-base text-muted-foreground hover:text-foreground transition-colors duration-150"
@@ -116,7 +118,10 @@ export function Navbar() {
                   </Link>
                 ))}
                 <div className="pt-3 flex flex-col gap-3">
-                  <Link href="/auth/login" className="text-base text-muted-foreground hover:text-foreground">Accedi</Link>
+                  <div className="flex items-center justify-between">
+                    <Link href="/auth/login" className="text-base text-muted-foreground hover:text-foreground">Accedi</Link>
+                    <ThemeToggle />
+                  </div>
                   <Link
                     href="/auth/register"
                     className="text-base font-medium bg-primary text-primary-foreground px-5 py-3 rounded-xl text-center hover:bg-primary/90 transition-colors"
