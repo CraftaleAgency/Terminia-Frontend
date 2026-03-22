@@ -73,12 +73,12 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
             <Link href="/auth/login">
-              <SecondaryShimmerButton size="sm">
+              <SecondaryShimmerButton size="sm" asChild>
                 Accedi
               </SecondaryShimmerButton>
             </Link>
             <Link href="/auth/register">
-              <BorderMagicButton size="sm">
+              <BorderMagicButton size="sm" asChild>
                 Inizia Gratis
               </BorderMagicButton>
             </Link>
@@ -118,14 +118,14 @@ export function Navbar() {
                 <div className="pt-3 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <Link href="/auth/login">
-                      <SecondaryShimmerButton size="sm">
+                      <SecondaryShimmerButton size="sm" asChild>
                         Accedi
                       </SecondaryShimmerButton>
                     </Link>
                     <ThemeToggle />
                   </div>
                   <Link href="/auth/register" className="w-full">
-                    <BorderMagicButton size="md" className="w-full">
+                    <BorderMagicButton size="md" className="w-full" asChild>
                       Inizia Gratis
                     </BorderMagicButton>
                   </Link>

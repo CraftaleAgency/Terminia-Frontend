@@ -7,6 +7,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode
   size?: "sm" | "md" | "lg"
   className?: string
+  asChild?: boolean
 }
 
 const sizeMap = {
@@ -18,14 +19,17 @@ const sizeMap = {
 /**
  * Primary CTA — spinning conic-gradient border ring
  */
-export function BorderMagicButton({ children, size = "md", className, ...props }: ButtonProps) {
+export function BorderMagicButton({ children, size = "md", className, asChild, ...props }: ButtonProps) {
+  const Comp = asChild ? "span" : "button"
+  
   return (
-    <button
+    <Comp
       className={cn(
         "relative inline-flex overflow-hidden rounded-full p-[1px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-primary/50 transition-transform hover:scale-[1.02] active:scale-[0.98]",
+        asChild ? "cursor-pointer" : "",
         className
       )}
-      {...props}
+      {...(asChild ? {} : props)}
     >
       {/* spinning gradient ring */}
       <span
@@ -35,30 +39,33 @@ export function BorderMagicButton({ children, size = "md", className, ...props }
       {/* inner pill */}
       <span
         className={cn(
-          "relative inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-background font-semibold text-foreground backdrop-blur-3xl",
+          "relative inline-flex h-full w-full items-center justify-center rounded-full bg-background font-semibold text-foreground backdrop-blur-3xl",
           sizeMap[size]
         )}
       >
         {children}
       </span>
-    </button>
+    </Comp>
   )
 }
 
 /**
- * Secondary — subtle shimmer sweep button (single button element, no nesting)
+ * Secondary — subtle border button
  */
-export function SecondaryShimmerButton({ children, size = "md", className, ...props }: ButtonProps) {
+export function SecondaryShimmerButton({ children, size = "md", className, asChild, ...props }: ButtonProps) {
+  const Comp = asChild ? "span" : "button"
+  
   return (
-    <button
+    <Comp
       className={cn(
         "inline-flex items-center justify-center rounded-full border border-border bg-secondary font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
+        asChild ? "cursor-pointer" : "",
         sizeMap[size],
         className
       )}
-      {...props}
+      {...(asChild ? {} : props)}
     >
       {children}
-    </button>
+    </Comp>
   )
 }
