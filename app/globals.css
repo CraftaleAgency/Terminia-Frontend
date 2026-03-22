@@ -164,7 +164,13 @@
     border-color: oklch(from var(--glass-border) l c h / 0.5);
   }
   .text-gradient {
-    background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-mid) 50%, var(--gradient-end) 100%);
+    background: linear-gradient(135deg, oklch(0.45 0.14 190) 0%, oklch(0.50 0.15 180) 50%, oklch(0.55 0.12 175) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .dark .text-gradient {
+    background: linear-gradient(135deg, oklch(0.60 0.12 195) 0%, oklch(0.72 0.14 180) 50%, oklch(0.78 0.10 170) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
