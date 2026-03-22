@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
 
 const navLinks = [
   { label: "Funzionalita", href: "#features" },
@@ -42,15 +43,17 @@ export function Navbar() {
       >
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Terminia home">
+          <Link href="/" className="flex items-center gap-3" aria-label="TerminIA home">
             <Image
               src="/images/terminia-logo.png"
-              alt="Terminia"
-              width={36}
-              height={36}
-              className="rounded-lg"
+              alt="TerminIA"
+              width={44}
+              height={44}
+              className="rounded-xl"
+              loading="eager"
+              style={{ width: 'auto', height: 'auto' }}
             />
-            <span className="text-foreground font-semibold text-lg tracking-tight">Terminia</span>
+            <span className="text-gradient font-bold text-xl tracking-tight">TerminIA</span>
           </Link>
 
           {/* Desktop nav */}
@@ -70,20 +73,16 @@ export function Navbar() {
           {/* CTA */}
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
-            <Link
-              href="/auth/login"
-              className="text-base text-muted-foreground hover:text-foreground transition-colors duration-150"
-            >
-              Accedi
+            <Link href="/auth/login">
+              <SecondaryShimmerButton size="sm">
+                Accedi
+              </SecondaryShimmerButton>
             </Link>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/auth/register"
-                className="text-base font-medium bg-primary text-primary-foreground px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors duration-150 glow-teal-sm"
-              >
+            <Link href="/auth/register">
+              <BorderMagicButton size="sm">
                 Inizia Gratis
-              </Link>
-            </motion.div>
+              </BorderMagicButton>
+            </Link>
           </div>
 
           {/* Mobile toggle */}
@@ -119,14 +118,17 @@ export function Navbar() {
                 ))}
                 <div className="pt-3 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <Link href="/auth/login" className="text-base text-muted-foreground hover:text-foreground">Accedi</Link>
+                    <Link href="/auth/login">
+                      <SecondaryShimmerButton size="sm">
+                        Accedi
+                      </SecondaryShimmerButton>
+                    </Link>
                     <ThemeToggle />
                   </div>
-                  <Link
-                    href="/auth/register"
-                    className="text-base font-medium bg-primary text-primary-foreground px-5 py-3 rounded-xl text-center hover:bg-primary/90 transition-colors"
-                  >
-                    Inizia Gratis
+                  <Link href="/auth/register" className="w-full">
+                    <BorderMagicButton size="md" className="w-full">
+                      Inizia Gratis
+                    </BorderMagicButton>
                   </Link>
                 </div>
               </div>

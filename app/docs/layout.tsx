@@ -15,15 +15,15 @@ export default function DocsLayout({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2">
+              <Link href="/" className="flex items-center gap-3">
                 <Image
                   src="/images/terminia-logo.png"
-                  alt="Terminia"
-                  width={32}
-                  height={32}
-                  className="rounded-lg"
+                  alt="TerminIA"
+                  width={40}
+                  height={40}
+                  className="rounded-xl"
                 />
-                <span className="font-semibold text-foreground">Terminia</span>
+                <span className="font-bold text-xl text-gradient">TerminIA</span>
               </Link>
               <span className="text-muted-foreground">/</span>
               <span className="text-muted-foreground">Documentazione</span>
