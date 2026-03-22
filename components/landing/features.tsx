@@ -66,30 +66,30 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="py-32 px-6 relative">
+    <section id="features" className="py-20 px-6 relative">
       <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute left-0 top-1/3 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.15_200/0.08)_0%,transparent_70%)]" />
       </div>
 
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="text-center mb-20">
+        <div className="text-center mb-12">
           <ScrollReveal delay={0.1}>
-            <div className="inline-flex items-center gap-3 text-sm text-primary uppercase tracking-widest font-medium mb-6">
-              <span className="w-10 h-px bg-primary/60" aria-hidden />
+            <div className="inline-flex items-center gap-3 text-sm text-primary uppercase tracking-widest font-medium mb-4">
+              <span className="w-8 h-px bg-primary/60" aria-hidden />
               Funzionalità
-              <span className="w-10 h-px bg-primary/60" aria-hidden />
+              <span className="w-8 h-px bg-primary/60" aria-hidden />
             </div>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.2}>
-            <h2 className="text-balance text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground mb-6">
+            <h2 className="text-balance text-3xl sm:text-4xl lg:text-4xl font-semibold text-foreground mb-4">
               Tutto ciò che serve per gestire i contratti
             </h2>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.3}>
-            <p className="mx-auto max-w-2xl text-muted-foreground text-lg md:text-xl leading-relaxed">
+            <p className="mx-auto max-w-2xl text-muted-foreground text-base md:text-lg leading-relaxed">
               Un sistema completo pensato per la realtà operativa delle PMI italiane.
             </p>
           </ScrollReveal>
@@ -144,16 +144,16 @@ function FeatureCard({
     <motion.div
       whileHover={{ scale: 1.02, y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`glass-card rounded-3xl p-8 border border-border/20 group hover:glass-card-hover hover:glow-teal-sm transition-all duration-300 flex flex-col gap-5 h-full ${
-        isLarge ? "min-h-[200px]" : ""
+      className={`glass-card rounded-2xl p-6 border border-border/20 group hover:glass-card-hover hover:glow-teal-sm transition-all duration-300 flex flex-col gap-4 h-full ${
+        isLarge ? "min-h-[160px]" : ""
       }`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors glow-blue-sm flex-shrink-0">
-        <Icon className="size-6 text-primary" aria-hidden />
+      <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors glow-blue-sm flex-shrink-0">
+        <Icon className="size-5 text-primary" aria-hidden />
       </div>
       <div>
-        <h3 className="font-semibold text-foreground text-xl mb-3">{feature.title}</h3>
-        <p className="text-base text-muted-foreground leading-relaxed">{feature.description}</p>
+        <h3 className="font-semibold text-foreground text-lg mb-2">{feature.title}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
       </div>
     </motion.div>
   )
