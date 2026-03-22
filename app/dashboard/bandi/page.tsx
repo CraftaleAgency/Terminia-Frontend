@@ -20,7 +20,9 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatCurrency, getBandi, type Bando } from "@/lib/mock-data"
+import { formatCurrency, type Bando } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 // Status configuration
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -102,7 +104,11 @@ const daysUntilDeadline = (deadline: string) => {
 }
 
 export default function BandiPage() {
+  const { user } = useUser()
+  const supabase = createClient()
+
   const [bandi, setBandi] = useState<Bando[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [viewMode, setViewMode] = useState<"card" | "table">("card")
   const [matchFilter, setMatchFilter] = useState(0)
@@ -112,8 +118,39 @@ export default function BandiPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    setBandi(getBandi())
-  }, [])
+    if (!user) return
+
+    const fetchBandi = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('bandi')
+          .select('*')
+          .eq('company_id', userData.company_id)
+          .order('deadline', { ascending: true })
+
+        if (error) throw error
+        setBandi(data || [])
+      } catch (error) {
+        console.error('Error fetching bandi:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBandi()
+  }, [user, supabase])
 
   const filteredBandi = bandi.filter(bando => {
     const matchesSearch =

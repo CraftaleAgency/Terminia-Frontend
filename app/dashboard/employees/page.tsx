@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import {
@@ -9,123 +9,97 @@ import {
   ArrowUpRight,
   Users,
   MoreHorizontal,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Briefcase,
   FileText,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
-// Mock data for employees
-const MOCK_EMPLOYEES = [
-  {
-    id: "1",
-    name: "Mario Rossi",
-    email: "mario.rossi@terminia.it",
-    phone: "+39 333 1234567",
-    role: "Sviluppatore Senior",
-    department: "Tecnologia",
-    contract_type: "tempo_indeterminato",
-    start_date: "2022-03-15",
-    end_date: null,
-    status: "active",
-    monthly_salary: 3500,
-    contracts_count: 0,
-  },
-  {
-    id: "2",
-    name: "Laura Bianchi",
-    email: "laura.bianchi@terminia.it",
-    phone: "+39 333 2345678",
-    role: "Product Designer",
-    department: "Design",
-    contract_type: "tempo_determinato",
-    start_date: "2023-06-01",
-    end_date: "2024-05-31",
-    status: "active",
-    monthly_salary: 2800,
-    contracts_count: 0,
-  },
-  {
-    id: "3",
-    name: "Giuseppe Verdi",
-    email: "giuseppe.verdi@terminia.it",
-    phone: "+39 333 3456789",
-    role: "Backend Developer",
-    department: "Tecnologia",
-    contract_type: "cococo",
-    start_date: "2023-09-01",
-    end_date: "2024-08-31",
-    status: "active",
-    monthly_salary: 4200,
-    contracts_count: 0,
-  },
-  {
-    id: "4",
-    name: "Anna Neri",
-    email: "anna.neri@terminia.it",
-    phone: "+39 333 4567890",
-    role: "Marketing Manager",
-    department: "Marketing",
-    contract_type: "tempo_indeterminato",
-    start_date: "2021-01-10",
-    end_date: null,
-    status: "active",
-    monthly_salary: 3200,
-    contracts_count: 0,
-  },
-  {
-    id: "5",
-    name: "Marco Ferrari",
-    email: "marco.ferrari@terminia.it",
-    phone: "+39 333 5678901",
-    role: "Frontend Developer",
-    department: "Tecnologia",
-    contract_type: "fixed_term",
-    start_date: "2024-02-01",
-    end_date: "2025-01-31",
-    status: "active",
-    monthly_salary: 3000,
-    contracts_count: 0,
-  },
-]
+interface Employee {
+  id: string
+  full_name: string
+  email?: string
+  phone?: string
+  employee_type: string
+  role?: string
+  department?: string
+  hire_date: string
+  termination_date?: string
+  ral: number
+  gross_cost: number
+  status: string
+}
 
 export default function EmployeesPage() {
+  const { user } = useUser()
+  const supabase = createClient()
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [contractTypeFilter, setContractTypeFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  const filteredEmployees = MOCK_EMPLOYEES.filter((emp) => {
+  useEffect(() => {
+    if (!user) return
+
+    const fetchEmployees = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('company_id', userData.company_id)
+          .order('full_name')
+
+        if (error) throw error
+        setEmployees(data || [])
+      } catch (error) {
+        console.error('Error fetching employees:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEmployees()
+  }, [user, supabase])
+
+  const filteredEmployees = employees.filter((emp) => {
     const matchesSearch = search === "" ||
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.email.toLowerCase().includes(search.toLowerCase()) ||
-      emp.department.toLowerCase().includes(search.toLowerCase())
+      emp.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      (emp.email?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (emp.department?.toLowerCase().includes(search.toLowerCase()) ?? false)
 
     const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter
-    const matchesContractType = contractTypeFilter === "all" || emp.contract_type === contractTypeFilter
+    const matchesContractType = contractTypeFilter === "all" || emp.employee_type === contractTypeFilter
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter
 
     return matchesSearch && matchesDepartment && matchesContractType && matchesStatus
   })
 
   const stats = {
-    total: MOCK_EMPLOYEES.length,
-    active: MOCK_EMPLOYEES.filter(e => e.status === "active").length,
-    expiring: MOCK_EMPLOYEES.filter(e => {
-      const endDate = new Date(e.end_date || "2099-12-31")
+    total: employees.length,
+    active: employees.filter(e => e.status === "active").length,
+    expiring: employees.filter(e => {
+      if (!e.termination_date) return false
+      const endDate = new Date(e.termination_date)
       const days = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
       return days <= 90 && e.status === "active"
     }).length,
-    totalSalary: MOCK_EMPLOYEES.reduce((sum, e) => sum + e.monthly_salary, 0),
+    totalSalary: employees.reduce((sum, e) => sum + (e.ral || 0), 0) / 12,
   }
+
+  const departments = [...new Set(employees.map(e => e.department).filter(Boolean))]
 
   const getContractTypeLabel = (type: string) => {
     switch (type) {
@@ -146,7 +120,7 @@ export default function EmployeesPage() {
     }
   }
 
-  const getDaysUntil = (dateStr: string) => {
+  const getDaysUntil = (dateStr: string | undefined) => {
     if (!dateStr) return null
     const date = new Date(dateStr)
     const now = new Date()
@@ -175,6 +149,7 @@ export default function EmployeesPage() {
           href="/dashboard/employees/new"
           className="flex items-center gap-2 bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-all glow-teal-sm text-sm"
         >
+          <Plus className="size-4" />
           Nuovo Dipendente
           <ArrowUpRight className="size-4" />
         </Link>
@@ -249,9 +224,9 @@ export default function EmployeesPage() {
               className="px-3 py-2.5 bg-muted/30 border border-border/20 rounded-xl text-sm text-foreground focus:outline-none"
             >
               <option value="all">Tutti i reparti</option>
-              <option value="Tecnologia">Tecnologia</option>
-              <option value="Design">Design</option>
-              <option value="Marketing">Marketing</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
             </select>
           </div>
 
@@ -291,18 +266,22 @@ export default function EmployeesPage() {
         transition={{ delay: 0.25 }}
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
-        <div className="divide-y divide-border/10">
-          {filteredEmployees.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <Users className="size-12 text-muted-foreground/50 mx-auto mb-4" />
-              <div className="text-foreground font-medium">Nessun dipendente trovato</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Prova a modificare i filtri
-              </div>
+        {loading ? (
+          <div className="px-6 py-12 text-center">
+            <div className="text-muted-foreground">Caricamento...</div>
+          </div>
+        ) : filteredEmployees.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <Users className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+            <div className="text-foreground font-medium">Nessun dipendente trovato</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Prova a modificare i filtri
             </div>
-          ) : (
-            filteredEmployees.map((employee) => {
-              const daysUntilEnd = getDaysUntil(employee.end_date)
+          </div>
+        ) : (
+          <div className="divide-y divide-border/10">
+            {filteredEmployees.map((employee) => {
+              const daysUntilEnd = getDaysUntil(employee.termination_date)
 
               return (
                 <Link
@@ -313,7 +292,7 @@ export default function EmployeesPage() {
                   {/* Avatar */}
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <span className="text-sm font-medium text-primary">
-                      {employee.name.split(" ").map(n => n[0]).join("")}
+                      {employee.full_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                     </span>
                   </div>
 
@@ -321,27 +300,27 @@ export default function EmployeesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground truncate">
-                        {employee.name}
+                        {employee.full_name}
                       </span>
-                      {employee.contract_type === "fixed_term" && daysUntilEnd && daysUntilEnd > 0 && (
+                      {employee.employee_type === "fixed_term" && daysUntilEnd && daysUntilEnd > 0 && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
                           Scade tra {daysUntilEnd}gg
                         </span>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {employee.role} · {employee.department}
+                      {employee.role || 'N/A'} · {employee.department || 'N/A'}
                     </div>
                   </div>
 
                   {/* Contract Type */}
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs px-2 py-1 rounded-full ${getContractTypeColor(employee.contract_type)}`}>
-                      {getContractTypeLabel(employee.contract_type)}
+                    <span className={cn("text-xs px-2 py-1 rounded-full", getContractTypeColor(employee.employee_type))}>
+                      {getContractTypeLabel(employee.employee_type)}
                     </span>
-                    {employee.monthly_salary && (
+                    {employee.ral && (
                       <span className="text-xs text-muted-foreground">
-                        {formatCurrency(employee.monthly_salary)}/mese
+                        {formatCurrency(employee.ral / 12)}/mese
                       </span>
                     )}
                   </div>
@@ -355,9 +334,9 @@ export default function EmployeesPage() {
                   </div>
                 </Link>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </motion.div>
     </div>
   )

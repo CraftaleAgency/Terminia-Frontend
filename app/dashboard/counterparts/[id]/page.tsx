@@ -27,30 +27,73 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
-  getCounterpart,
-  getContracts,
   formatCurrency,
   formatDate,
   type Counterpart,
   type Contract,
 } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 export default function CounterpartDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
+  const supabase = createClient()
   const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
   const [relatedContracts, setRelatedContracts] = useState<Contract[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const counterpartData = getCounterpart(params.id as string)
-    if (counterpartData) {
-      setCounterpart(counterpartData)
-      // Get related contracts
-      const contracts = getContracts().filter(c => c.counterpart_id === counterpartData.id)
-      setRelatedContracts(contracts)
+    if (!user) return
+
+    const fetchData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        // Fetch counterpart
+        const { data: counterpartData, error: counterpartError } = await supabase
+          .from('counterparts')
+          .select('*')
+          .eq('id', params.id)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (counterpartError || !counterpartData) {
+          setLoading(false)
+          return
+        }
+
+        setCounterpart(counterpartData)
+
+        // Fetch related contracts
+        const { data: contractsData } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('counterpart_id', params.id)
+          .eq('company_id', userData.company_id)
+
+        setRelatedContracts(contractsData || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [params.id])
+
+    fetchData()
+  }, [user, supabase, params.id])
 
   const handleRefreshVerification = async () => {
     setIsRefreshing(true)
@@ -59,12 +102,22 @@ export default function CounterpartDetailPage() {
     setIsRefreshing(false)
   }
 
-  if (!counterpart) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Caricamento controparte...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!counterpart) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Controparte non trovata</p>
         </div>
       </div>
     )

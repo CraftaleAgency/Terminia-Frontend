@@ -58,8 +58,8 @@ export function DashboardPreview() {
             <div className="w-48 h-6 rounded-lg bg-muted/20" />
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-xs font-medium text-foreground">Sitelab</div>
-                <div className="text-[10px] text-muted-foreground">sitelab@yupmail.com</div>
+                <div className="text-xs font-medium text-foreground">Azienda Demo</div>
+                <div className="text-[10px] text-muted-foreground">admin@example.com</div>
               </div>
               <div className="w-6 h-6 rounded-full bg-muted/30" />
             </div>
