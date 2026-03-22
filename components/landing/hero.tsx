@@ -4,25 +4,25 @@ import Link from "next/link"
 import { ArrowRight, Play, LayoutDashboard, FileText, Users, Bell, BarChart3, Radar, Settings, CreditCard, Briefcase, FolderOpen, Shield } from "lucide-react"
 import { motion } from "framer-motion"
 import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
+import { ContainerScroll } from "@/components/ui/container-scroll-animation"
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-screen">
-      {/* Background layers - inspired by wope/terminia logo colors */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Central radial glow - teal/cyan from logo */}
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1400px] h-[800px] bg-[radial-gradient(ellipse_at_center,oklch(0.45_0.08_200/0.2)_0%,oklch(0.55_0.12_185/0.12)_35%,transparent_65%)]" />
+    <section className="relative min-h-screen">
+      {/* Background layers */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {/* Central radial glow */}
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1400px] h-[900px] bg-[radial-gradient(ellipse_at_center,oklch(0.45_0.08_195/0.15)_0%,oklch(0.55_0.12_185/0.08)_40%,transparent_70%)]" />
         
-        {/* Soft accent orbs */}
-        <div className="absolute -left-60 top-40 w-[700px] h-[700px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.10_185/0.08)_0%,transparent_55%)]" />
-        <div className="absolute -right-60 top-60 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_180/0.06)_0%,transparent_55%)]" />
+        {/* Left orb */}
+        <div className="absolute -left-40 top-60 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.10_185/0.06)_0%,transparent_60%)]" />
         
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-background to-transparent" />
+        {/* Right orb */}
+        <div className="absolute -right-40 top-80 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_180/0.05)_0%,transparent_60%)]" />
         
-        {/* Subtle grid pattern */}
+        {/* Grid pattern */}
         <div
-          className="absolute inset-0 opacity-[0.025] dark:opacity-[0.02]"
+          className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: `linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)`,
             backgroundSize: "80px 80px",
@@ -30,104 +30,76 @@ export function Hero() {
         />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Hero content */}
-        <div className="pt-32 md:pt-40 lg:pt-48 pb-12 text-center">
-          {/* Main headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-[0.95] tracking-tight mb-8"
-          >
-            <span className="block text-foreground">Ogni scadenza.</span>
-            <span className="block text-foreground">Ogni clausola.</span>
-            <span className="block text-gradient">Sotto controllo.</span>
-          </motion.h1>
+      {/* ContainerScroll with 3D dashboard */}
+      <ContainerScroll
+        titleComponent={
+          <div className="pt-28 md:pt-32">
+            {/* Main headline */}
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.1 }}
+              className="text-balance text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-[0.95] tracking-tight mb-8"
+            >
+              <span className="block text-foreground">Ogni scadenza.</span>
+              <span className="block text-foreground">Ogni clausola.</span>
+              <span className="block text-gradient">Sotto controllo.</span>
+            </motion.h1>
 
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="mx-auto max-w-2xl text-balance text-xl md:text-2xl text-muted-foreground leading-relaxed mb-12"
-          >
-            Lascia che l'AI legga, capisca e protegga ogni contratto della tua azienda.
-            Il co-pilota legale per le PMI italiane.
-          </motion.p>
+            {/* Subheadline */}
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="mx-auto max-w-2xl text-balance text-xl md:text-2xl text-muted-foreground leading-relaxed mb-12"
+            >
+              Lascia che l&apos;AI legga, capisca e protegga ogni contratto della tua azienda.
+              Il co-pilota legale per le PMI italiane.
+            </motion.p>
 
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
-          >
-            <Link href="/auth/register">
-              <BorderMagicButton size="lg">
-                Inizia Gratis 14 giorni
-                <ArrowRight className="size-5" aria-hidden />
-              </BorderMagicButton>
-            </Link>
-            <Link href="#how-it-works">
-              <SecondaryShimmerButton size="lg">
-                <Play className="size-4" aria-hidden />
-                Scopri come funziona
-              </SecondaryShimmerButton>
-            </Link>
-          </motion.div>
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
+            >
+              <Link href="/auth/register">
+                <BorderMagicButton size="lg">
+                  Inizia Gratis 14 giorni
+                  <ArrowRight className="size-5" aria-hidden />
+                </BorderMagicButton>
+              </Link>
+              <Link href="#how-it-works">
+                <SecondaryShimmerButton size="lg">
+                  <Play className="size-4" aria-hidden />
+                  Scopri come funziona
+                </SecondaryShimmerButton>
+              </Link>
+            </motion.div>
 
-          {/* Trust line */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="text-sm text-muted-foreground/60"
-          >
-            Nessuna carta richiesta. Setup in 2 minuti.
-          </motion.p>
-        </div>
-
-        {/* Dashboard Preview with glass frame */}
-        <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="relative mx-auto max-w-6xl mt-8"
-        >
-          {/* Glow effect behind */}
-          <div className="absolute -inset-8 bg-gradient-to-r from-primary/20 via-accent/15 to-primary/20 rounded-3xl blur-3xl opacity-60" />
-          
-          {/* Glass frame */}
-          <div className="relative glass-card rounded-3xl p-2 glow-teal">
-            {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 rounded-t-2xl bg-card/50">
-              <div className="flex gap-1.5" aria-hidden>
-                <div className="w-3 h-3 rounded-full bg-red-400/70" />
-                <div className="w-3 h-3 rounded-full bg-amber-400/70" />
-                <div className="w-3 h-3 rounded-full bg-emerald-400/70" />
-              </div>
-              <div className="flex-1 mx-4">
-                <div className="glass-card rounded-lg px-4 py-1.5 text-sm text-muted-foreground text-center max-w-xs mx-auto border-border/20">
-                  app.terminia.ai/dashboard
-                </div>
-              </div>
-            </div>
-
-            {/* Dashboard content - using real screenshot style */}
-            <div className="rounded-b-2xl overflow-hidden bg-card/30">
-              <DashboardPreviewContent />
-            </div>
+            {/* Trust line */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="text-sm text-muted-foreground/60"
+            >
+              Nessuna carta richiesta. Setup in 2 minuti.
+            </motion.p>
           </div>
-        </motion.div>
-      </div>
+        }
+      >
+        {/* Dashboard content inside ContainerScroll card */}
+        <DashboardPreviewContent />
+      </ContainerScroll>
     </section>
   )
 }
 
 function DashboardPreviewContent() {
   return (
-    <div className="h-[450px] md:h-[550px] flex">
+    <div className="h-full flex">
       {/* Mini sidebar */}
       <div className="w-14 flex-shrink-0 border-r border-border/20 py-4 flex flex-col items-center gap-2 bg-sidebar/50">
         {/* Logo mark */}
@@ -175,7 +147,7 @@ function DashboardPreviewContent() {
               { label: "Alert Aperti", value: "5", color: "text-red-400" },
               { label: "Rischio Alto", value: "3", color: "text-orange-400" },
             ].map((kpi) => (
-              <div key={kpi.label} className="glass-card rounded-xl p-4 border border-border/20">
+              <div key={kpi.label} className="glass-card rounded-xl p-4 border border-border/20 glow-teal-sm">
                 <div className={`w-8 h-8 rounded-lg bg-muted/30 mb-3 flex items-center justify-center ${kpi.color}`}>
                   <div className="w-4 h-4 rounded bg-current opacity-50" />
                 </div>
@@ -188,7 +160,7 @@ function DashboardPreviewContent() {
           {/* Two column layout */}
           <div className="grid md:grid-cols-3 gap-4 h-[calc(100%-140px)]">
             {/* Contracts table */}
-            <div className="md:col-span-2 glass-card rounded-xl border border-border/20 overflow-hidden">
+            <div className="md:col-span-2 glass-card rounded-xl border border-border/20 overflow-hidden glow-teal-sm">
               <div className="px-4 py-3 border-b border-border/20 flex items-center justify-between">
                 <span className="text-sm font-medium text-foreground">Contratti Recenti</span>
                 <span className="text-sm text-primary cursor-pointer">Vedi tutti</span>
@@ -217,7 +189,7 @@ function DashboardPreviewContent() {
             </div>
 
             {/* Alerts */}
-            <div className="glass-card rounded-xl border border-border/20 overflow-hidden">
+            <div className="glass-card rounded-xl border border-border/20 overflow-hidden glow-teal-sm">
               <div className="px-4 py-3 border-b border-border/20">
                 <span className="text-sm font-medium text-foreground">Alert Recenti</span>
               </div>

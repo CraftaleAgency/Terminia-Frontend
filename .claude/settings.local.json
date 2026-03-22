@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm:*)",
+      "Bash(for f in components/landing/*.tsx)",
+      "Bash(do git checkout --theirs \"$f\")",
+      "Bash(done)"
+    ]
+  }
+}
