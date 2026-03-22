@@ -139,6 +139,7 @@ export interface Invoice {
   amount_gross: number
   payment_status: PaymentStatus
   payment_date?: string
+  notes?: string
 }
 
 export interface Clause {
