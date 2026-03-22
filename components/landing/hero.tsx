@@ -1,8 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
-import { ArrowRight, Play } from "lucide-react"
+import { ArrowRight, Play, LayoutDashboard, FileText, Users, Bell, BarChart3, Radar, Settings, CreditCard, Briefcase, FolderOpen, Shield } from "lucide-react"
 import { motion } from "framer-motion"
 import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
 
@@ -130,26 +129,20 @@ function DashboardPreviewContent() {
   return (
     <div className="h-[450px] md:h-[550px] flex">
       {/* Mini sidebar */}
-      <div className="w-14 flex-shrink-0 border-r border-border/20 py-4 flex flex-col items-center gap-3 bg-sidebar/50">
-        {/* Logo */}
-        <div className="w-9 h-9 rounded-xl overflow-hidden mb-4 border border-border/30">
-          <Image
-            src="/images/terminia-logo.png"
-            alt="TerminIA"
-            width={36}
-            height={36}
-            className="w-full h-full object-cover"
-          />
+      <div className="w-14 flex-shrink-0 border-r border-border/20 py-4 flex flex-col items-center gap-2 bg-sidebar/50">
+        {/* Logo mark */}
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3dc1c3] to-[#0d4f5f] flex items-center justify-center mb-3 flex-shrink-0">
+          <Shield className="size-5 text-white" aria-hidden />
         </div>
         {/* Nav icons */}
-        {[1,2,3,4,5,6,7,8,9,10].map((i) => (
+        {[LayoutDashboard, FileText, Users, Briefcase, CreditCard, FolderOpen, Radar, BarChart3, Bell, Settings].map((Icon, i) => (
           <div
             key={i}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-              i === 1 ? "bg-primary/15 text-primary" : "text-muted-foreground/40 hover:text-muted-foreground/60"
+              i === 0 ? "bg-primary/15 text-primary" : "text-muted-foreground/30"
             }`}
           >
-            <div className={`w-4 h-4 rounded ${i === 1 ? "bg-current" : "bg-current opacity-30"}`} />
+            <Icon className="size-4" aria-hidden />
           </div>
         ))}
       </div>

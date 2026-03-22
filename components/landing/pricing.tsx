@@ -96,40 +96,30 @@ export function Pricing() {
           {/* Toggle */}
           <ScrollReveal delay={0.4}>
             <div className="inline-flex items-center glass-card rounded-2xl p-1.5 border border-border/20">
-              <button
-                onClick={() => setAnnual(false)}
-                className="relative"
-              >
-                {!annual ? (
-                  <BorderMagicButton size="sm">
-                    Mensile
-                  </BorderMagicButton>
-                ) : (
-                  <SecondaryShimmerButton size="sm">
-                    Mensile
-                  </SecondaryShimmerButton>
-                )}
-              </button>
-              <button
-                onClick={() => setAnnual(true)}
-                className="relative"
-              >
-                {annual ? (
-                  <BorderMagicButton size="sm">
-                    Annuale
-                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-background/20">
-                      -20%
-                    </span>
-                  </BorderMagicButton>
-                ) : (
-                  <SecondaryShimmerButton size="sm">
-                    Annuale
-                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                      -20%
-                    </span>
-                  </SecondaryShimmerButton>
-                )}
-              </button>
+              {!annual ? (
+                <BorderMagicButton size="sm" onClick={() => setAnnual(false)}>
+                  Mensile
+                </BorderMagicButton>
+              ) : (
+                <SecondaryShimmerButton size="sm" onClick={() => setAnnual(false)}>
+                  Mensile
+                </SecondaryShimmerButton>
+              )}
+              {annual ? (
+                <BorderMagicButton size="sm" onClick={() => setAnnual(true)}>
+                  Annuale
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-background/20">
+                    -20%
+                  </span>
+                </BorderMagicButton>
+              ) : (
+                <SecondaryShimmerButton size="sm" onClick={() => setAnnual(true)}>
+                  Annuale
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                    -20%
+                  </span>
+                </SecondaryShimmerButton>
+              )}
             </div>
           </ScrollReveal>
         </div>
