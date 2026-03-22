@@ -15,7 +15,10 @@
       "Bash(pnpm build)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__emulate",
+      "mcp__chrome-devtools__evaluate_script"
     ]
   }
 }

@@ -27,37 +27,90 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
-  getEmployee,
-  getContracts,
   formatCurrency,
   formatDate,
   daysUntil,
   type Employee,
   type Contract,
 } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 export default function EmployeeDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
+  const supabase = createClient()
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [relatedContracts, setRelatedContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const employeeData = getEmployee(params.id as string)
-    if (employeeData) {
-      setEmployee(employeeData)
-      // Get related contracts
-      const contracts = getContracts().filter(c => c.employee_id === employeeData.id)
-      setRelatedContracts(contracts)
-    }
-  }, [params.id])
+    if (!user) return
 
-  if (!employee) {
+    const fetchData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        // Fetch employee
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('id', params.id)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (employeeError || !employeeData) {
+          setLoading(false)
+          return
+        }
+
+        setEmployee(employeeData)
+
+        // Fetch related contracts
+        const { data: contractsData } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('employee_id', params.id)
+          .eq('company_id', userData.company_id)
+
+        setRelatedContracts(contractsData || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [user, supabase, params.id])
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Caricamento dipendente...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!employee) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Dipendente non trovato</p>
         </div>
       </div>
     )

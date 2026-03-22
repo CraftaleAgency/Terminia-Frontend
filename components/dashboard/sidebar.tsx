@@ -18,12 +18,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
-  FileSearch,
-  FileOutput,
+  X,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { getAlerts } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
 import { logout } from "@/app/auth/actions"
 import { useUser } from "@/lib/hooks/use-user"
 
@@ -34,8 +33,6 @@ const mainNavItems = [
   { label: "Dipendenti", href: "/dashboard/employees", icon: Users },
   { label: "Fatture", href: "/dashboard/invoices", icon: Receipt },
   { label: "BandoRadar", href: "/dashboard/bandi", icon: Radar },
-  { label: "Documenti", href: "/dashboard/documents", icon: FileOutput },
-  { label: "Advisor OSINT", href: "/dashboard/advisor", icon: FileSearch },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { label: "Alert", href: "/dashboard/alerts", icon: Bell, badge: true },
 ]
@@ -44,17 +41,54 @@ const bottomNavItems = [
   { label: "Impostazioni", href: "/dashboard/settings", icon: Settings },
 ]
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  mobileOpen?: boolean
+  onMobileClose?: () => void
+}
+
+export function DashboardSidebar({ mobileOpen = false, onMobileClose }: DashboardSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useUser()
+  const supabase = createClient()
   const [collapsed, setCollapsed] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
 
   useEffect(() => {
-    const alerts = getAlerts()
-    setAlertCount(alerts.filter(a => a.status === "pending").length)
-  }, [])
+    if (!user) return
+
+    const fetchAlertCount = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) return
+
+        const { count } = await supabase
+          .from('alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', userData.company_id)
+          .in('status', ['pending', 'escalated'])
+
+        setAlertCount(count || 0)
+      } catch (error) {
+        console.error('Error fetching alert count:', error)
+      }
+    }
+
+    fetchAlertCount()
+  }, [user, supabase])
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    if (mobileOpen && onMobileClose) {
+      onMobileClose()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   const userName = user?.user_metadata?.full_name || user?.user_metadata?.company_name || user?.email?.split('@')[0] || "Utente"
   const userEmail = user?.email || "utente@terminia.it"
@@ -64,14 +98,39 @@ export function DashboardSidebar() {
   }
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 ease-out",
-        collapsed ? "w-[64px]" : "w-[220px]"
-      )}
-    >
-      {/* Glass background */}
-      <div className="absolute inset-0 glass-card border-r border-border/30" />
+    <>
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onMobileClose}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside
+        className={cn(
+          "fixed left-0 top-0 bottom-0 z-50 flex flex-col transition-transform duration-300 ease-out",
+          // Mobile: hidden by default, shown when mobileOpen
+          "-translate-x-full md:translate-x-0",
+          mobileOpen && "translate-x-0",
+          collapsed ? "w-[220px] md:w-[64px]" : "w-[220px]"
+        )}
+      >
+        {/* Close button on mobile */}
+        <button
+          onClick={onMobileClose}
+          className="absolute top-4 right-4 z-50 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 md:hidden"
+        >
+          <X className="size-5" />
+        </button>
+
+        {/* Glass background */}
+        <div className="absolute inset-0 glass-card border-r border-border/30" />
       
       <div className="relative flex flex-col h-full">
         {/* Logo */}
@@ -227,11 +286,11 @@ export function DashboardSidebar() {
             )}
           </div>
 
-          {/* Collapse toggle */}
+          {/* Collapse toggle - hidden on mobile */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all duration-200",
+              "mt-3 w-full hidden md:flex items-center justify-center gap-2 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all duration-200",
               collapsed && "px-0"
             )}
           >
@@ -247,5 +306,6 @@ export function DashboardSidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

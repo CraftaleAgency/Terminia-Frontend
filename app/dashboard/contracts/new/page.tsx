@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, Suspense } from "react"
+import { useState, useCallback, useEffect, Suspense } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft,
@@ -27,7 +27,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getCounterparts, getEmployees, formatCurrency, type Counterpart, type Employee } from "@/lib/mock-data"
+import { formatCurrency, type Counterpart, type Employee } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 type CreationMode = "upload" | "manual"
 type ContractType = "service_supply" | "goods_supply" | "framework" | "nda" | "agency" | "partnership" | "permanent" | "fixed_term" | "cococo" | "apprenticeship" | "internship" | "collaboration"
@@ -44,6 +46,8 @@ function NewContractContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedCounterpart = searchParams.get("counterpart")
+  const { user } = useUser()
+  const supabase = createClient()
 
   const [mode, setMode] = useState<CreationMode>("upload")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -92,10 +96,42 @@ function NewContractContent() {
   const [employees, setEmployees] = useState<Employee[]>([])
 
   // Load data
-  useState(() => {
-    setCounterparts(getCounterparts())
-    setEmployees(getEmployees())
-  })
+  useEffect(() => {
+    if (!user) return
+
+    const fetchData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) return
+
+        // Fetch counterparts
+        const { data: counterpartData } = await supabase
+          .from('counterparts')
+          .select('*')
+          .eq('company_id', userData.company_id)
+
+        setCounterparts(counterpartData || [])
+
+        // Fetch employees
+        const { data: employeeData } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('company_id', userData.company_id)
+
+        setEmployees(employeeData || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
+    }
+
+    fetchData()
+  }, [user, supabase])
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections)
