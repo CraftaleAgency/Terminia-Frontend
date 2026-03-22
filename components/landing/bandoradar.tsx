@@ -36,10 +36,11 @@ const sources = ["ANAC", "TED Europa", "Invitalia", "MIMIT", "Portali Regionali"
 export function BandoRadar() {
   return (
     <section id="bandoradar" className="py-32 px-6 relative overflow-hidden">
-      {/* Background accent */}
-      <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute right-0 bottom-0 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.18_220/0.1)_0%,transparent_70%)]" />
+      {/* Background effects */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-32 bg-gradient-to-b from-primary/50 to-transparent" />
+        <div className="absolute right-0 bottom-0 w-[700px] h-[700px] rounded-full bg-[radial-gradient(circle,oklch(0.68_0.12_195/0.08)_0%,transparent_60%)]" />
+        <div className="absolute left-0 top-1/3 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.14_180/0.05)_0%,transparent_60%)]" />
       </div>
 
       <div className="mx-auto max-w-6xl">
@@ -108,7 +109,7 @@ export function BandoRadar() {
                 <motion.div
                   whileHover={{ scale: 1.02, x: -8 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="glass-card rounded-3xl p-6 border border-border/20 group hover:glass-card-hover transition-all duration-300"
+                  className="glass-card rounded-3xl p-6 border border-border/20 group hover:glass-card-hover hover:glow-teal-sm transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex-1 min-w-0">

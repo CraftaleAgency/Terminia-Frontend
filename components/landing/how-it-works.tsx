@@ -71,7 +71,7 @@ export function HowItWorks() {
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="glass-card rounded-3xl p-8 border border-border/20 group hover:glass-card-hover transition-all duration-300"
+                  className="glass-card rounded-3xl p-8 border border-border/20 group hover:glass-card-hover hover:glow-teal-sm transition-all duration-300"
                 >
                   <div className={`flex items-start gap-5 ${isRight ? "md:flex-row" : "md:flex-row-reverse"}`}>
                     <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors glow-blue-sm">

@@ -30,8 +30,12 @@ const pains = [
 export function Problem() {
   return (
     <section className="py-32 px-6 relative">
-      {/* Top divider glow */}
-      <div aria-hidden className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-32 bg-gradient-to-b from-primary/50 to-transparent" />
+      {/* Background effects */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-32 bg-gradient-to-b from-primary/50 to-transparent" />
+        <div className="absolute right-0 top-1/4 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.10_195/0.05)_0%,transparent_60%)]" />
+        <div className="absolute left-0 bottom-1/4 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_180/0.04)_0%,transparent_60%)]" />
+      </div>
 
       <div className="mx-auto max-w-6xl">
         {/* Header */}
@@ -46,10 +50,8 @@ export function Problem() {
           
           <ScrollReveal delay={0.2}>
             <h2 className="text-balance text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground mb-6 leading-tight">
-              Ogni anno le PMI italiane perdono il{" "}
-              <span className="text-gradient">9% del fatturato</span>
-              <br className="hidden sm:block" />
-              {" "}per contratti non gestiti
+              I costi invisibili di una{" "}
+              <span className="text-gradient">gestione improvvisata</span>
             </h2>
           </ScrollReveal>
           
@@ -70,7 +72,7 @@ export function Problem() {
                 <motion.div
                   whileHover={{ scale: 1.02, y: -4 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="glass-card rounded-3xl p-8 group hover:glass-card-hover transition-all duration-300 border border-border/20 h-full"
+                  className="glass-card rounded-3xl p-8 group hover:glass-card-hover transition-all duration-300 border border-border/20 h-full hover:glow-teal-sm"
                 >
                   <div className="flex items-start gap-5">
                     <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
