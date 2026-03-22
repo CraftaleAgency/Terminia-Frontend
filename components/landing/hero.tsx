@@ -65,13 +65,13 @@ export function Hero() {
               className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
             >
               <Link href="/auth/register">
-                <BorderMagicButton size="lg">
+                <BorderMagicButton size="lg" asChild>
                   Inizia Gratis 14 giorni
                   <ArrowRight className="size-5" aria-hidden />
                 </BorderMagicButton>
               </Link>
               <Link href="#how-it-works">
-                <SecondaryShimmerButton size="lg">
+                <SecondaryShimmerButton size="lg" asChild>
                   <Play className="size-4" aria-hidden />
                   Scopri come funziona
                 </SecondaryShimmerButton>
