@@ -49,9 +49,8 @@ export function Navbar() {
               alt="TerminIA"
               width={44}
               height={44}
-              className="rounded-xl"
+              className="rounded-xl size-11 object-contain flex-shrink-0"
               loading="eager"
-              style={{ width: 'auto', height: 'auto' }}
             />
             <span className="text-gradient font-bold text-xl tracking-tight">TerminIA</span>
           </Link>
