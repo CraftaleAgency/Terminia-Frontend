@@ -1,4 +1,6 @@
 import Image from "next/image"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export default function AuthLayout({
   children,
@@ -13,9 +15,18 @@ export default function AuthLayout({
         <div className="absolute -left-40 bottom-0 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,oklch(0.68_0.12_195/0.08)_0%,transparent_60%)]" />
         <div className="absolute -right-40 top-20 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,oklch(0.75_0.14_180/0.06)_0%,transparent_60%)]" />
       </div>
-      
+
+      {/* Back to site button */}
+      <Link
+        href="/"
+        className="absolute top-4 left-4 z-20 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        <span>Torna al sito</span>
+      </Link>
+
       {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-8 relative z-10">
+      <Link href="/" className="flex items-center gap-2.5 mb-8 relative z-10">
         <Image
           src="/images/terminia-logo.png"
           alt="Terminia"
@@ -24,8 +35,8 @@ export default function AuthLayout({
           className="rounded-lg"
         />
         <span className="text-foreground font-semibold text-xl tracking-tight">Terminia</span>
-      </div>
-      
+      </Link>
+
       {/* Content */}
       <div className="relative z-10 w-full max-w-md">
         {children}
