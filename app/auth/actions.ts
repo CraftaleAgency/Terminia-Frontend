@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
+  const accountType = (formData.get('accountType') as string) || 'company'
 
   const data = {
     email: formData.get('email') as string,
@@ -13,11 +14,14 @@ export async function signup(formData: FormData) {
     options: {
       data: {
         full_name: formData.get('fullName') as string,
-        company_name: formData.get('companyName') as string,
-        vat_number: formData.get('vatNumber') as string,
+        account_type: accountType,
+        company_name: (formData.get('companyName') as string) || undefined,
+        vat_number: (formData.get('vatNumber') as string) || undefined,
         sector: formData.get('sector') as string,
         size: formData.get('size') as string,
         city: formData.get('city') as string,
+        fiscal_code: (formData.get('fiscalCode') as string) || undefined,
+        personal_contract_profile: (formData.get('personalContractProfile') as string) || undefined,
       },
     },
   }
