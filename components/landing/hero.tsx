@@ -8,7 +8,7 @@ import { ContainerScroll } from "@/components/ui/container-scroll-animation"
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen">
+    <section className="relative min-h-screen pt-20 md:pt-0">
       {/* Background layers */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         {/* Central radial glow */}
