@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { formatCurrency, type Bando } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Status configuration
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -416,7 +417,38 @@ export default function BandiPage() {
 
       {/* Bandi List */}
       <AnimatePresence mode="wait">
-        {viewMode === "card" ? (
+        {loading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="glass-card rounded-2xl border border-border/20 overflow-hidden">
+                <Skeleton className="h-2 w-full" />
+                <div className="p-5 space-y-3">
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-10 w-full rounded-xl mt-4" />
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        ) : viewMode === "card" ? (
           <motion.div
             key="card"
             initial={{ opacity: 0 }}

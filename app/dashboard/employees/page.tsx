@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Employee {
   id: string
@@ -267,8 +268,26 @@ export default function EmployeesPage() {
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
         {loading ? (
-          <div className="px-6 py-12 text-center">
-            <div className="text-muted-foreground">Caricamento...</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="p-5 rounded-xl border border-border/20 bg-card/50">
+                <div className="flex items-start gap-4 mb-4">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-5 w-36 mb-2" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="mt-4 pt-4 border-t border-border/10">
+                  <Skeleton className="h-9 w-full rounded-lg" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredEmployees.length === 0 ? (
           <div className="px-6 py-12 text-center">
