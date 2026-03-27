@@ -47,7 +47,6 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
-import { Skeleton } from "@/components/ui/skeleton"
 
 // Status filter options
 const STATUS_OPTIONS = [
@@ -108,13 +107,20 @@ export default function InvoicesPage() {
     const fetchData = async () => {
       try {
         // Get user's company
-        const { data: userData } = await supabase
+        const { data: userData, error: userError } = await supabase
           .from('users')
           .select('company_id')
           .eq('id', user.id)
           .single()
 
+        if (userError) {
+          console.error('Error fetching user data:', userError)
+          setLoading(false)
+          return
+        }
+
         if (!userData?.company_id) {
+          console.log('No company_id found for user')
           setLoading(false)
           return
         }
@@ -126,14 +132,17 @@ export default function InvoicesPage() {
           .from('invoices')
           .select(`
             *,
-            counterparts(name),
-            contracts(title)
+            counterparts!invoices_counterpart_id_fkey(name),
+            contracts!invoices_contract_id_fkey(title)
           `)
           .eq('company_id', userData.company_id)
           .eq('invoice_type', invoiceType)
           .order('invoice_date', { ascending: false })
 
-        if (invoiceError) throw invoiceError
+        if (invoiceError) {
+          console.error('Error fetching invoices:', invoiceError)
+          throw invoiceError
+        }
 
         const formattedInvoices = invoiceData?.map(inv => ({
           ...inv,
@@ -152,28 +161,37 @@ export default function InvoicesPage() {
           unpaid: unpaid.length,
           paid: paid.length,
           overdue: overdue.length,
-          toCollect: unpaid.reduce((sum, i) => sum + i.amount_gross, 0),
-          collected: paid.reduce((sum, i) => sum + i.amount_gross, 0),
-          overdueAmount: overdue.reduce((sum, i) => sum + i.amount_gross, 0),
+          toCollect: unpaid.reduce((sum, i) => sum + (i.amount_gross || 0), 0),
+          collected: paid.reduce((sum, i) => sum + (i.amount_gross || 0), 0),
+          overdueAmount: overdue.reduce((sum, i) => sum + (i.amount_gross || 0), 0),
         })
 
         // Fetch counterparts
-        const { data: counterpartData } = await supabase
+        const { data: counterpartData, error: counterpartError } = await supabase
           .from('counterparts')
           .select('*')
           .eq('company_id', userData.company_id)
 
-        setCounterparts(counterpartData || [])
+        if (counterpartError) {
+          console.error('Error fetching counterparts:', counterpartError)
+        } else {
+          setCounterparts(counterpartData || [])
+        }
 
         // Fetch contracts
-        const { data: contractData } = await supabase
+        const { data: contractData, error: contractError } = await supabase
           .from('contracts')
           .select('*')
           .eq('company_id', userData.company_id)
 
-        setContracts(contractData || [])
+        if (contractError) {
+          console.error('Error fetching contracts:', contractError)
+        } else {
+          setContracts(contractData || [])
+        }
       } catch (error) {
         console.error('Error fetching data:', error)
+        toast.error('Errore nel caricamento delle fatture')
       } finally {
         setLoading(false)
       }
@@ -568,22 +586,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/10">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-32" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-28" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
-                    <td className="px-5 py-4 text-right"><Skeleton className="h-5 w-20 ml-auto" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-12" /></td>
-                    <td className="px-5 py-4 text-right"><Skeleton className="h-5 w-24 ml-auto" /></td>
-                    <td className="px-5 py-4 text-center"><Skeleton className="h-6 w-20 rounded-full mx-auto" /></td>
-                    <td className="px-5 py-4 text-center"><Skeleton className="h-8 w-8 rounded-md mx-auto" /></td>
-                  </tr>
-                ))
-              ) : filteredInvoices.length === 0 ? (
+              {filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-12 text-center">
                     <FileText className="size-12 text-muted-foreground/50 mx-auto mb-4" />

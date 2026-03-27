@@ -33,174 +33,165 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import {
-  getContract,
-  getCounterpart,
-  getEmployee,
-  getInvoices,
-  formatCurrency,
-  formatDate,
-  daysUntil,
-  getStatusLabel,
-  getStatusColor,
-  getRiskColor,
-  type Contract,
-  type Counterpart,
-  type Employee,
-  type Invoice,
-  type Clause,
-  type Obligation,
-  type Milestone,
-} from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
-// Mock data for clauses, obligations, milestones - will be replaced with Supabase
-const mockClauses: Clause[] = [
-  {
-    id: "cl1",
-    contract_id: "c1",
-    clause_type: "Riservatezza",
-    original_text: "Le parti si impegnano a mantenere riservate le informazioni ricevute nel corso dell'esecuzione del presente contratto per un periodo di 5 anni dalla sua scadenza.",
-    simplified_text: "Entrambe le parti devono mantenere segrete le informazioni scambiate per 5 anni dopo la fine del contratto.",
-    risk_level: "low",
-    risk_score: 15,
-  },
-  {
-    id: "cl2",
-    contract_id: "c1",
-    clause_type: "Penali",
-    original_text: "In caso di ritardo nella consegna dei servizi oltre i termini stabiliti, il Fornitore dovra corrispondere una penale pari al 5% del valore del contratto per ogni giorno di ritardo, fino a un massimo del 30% del valore complessivo.",
-    simplified_text: "Se i servizi vengono consegnati in ritardo, il fornitore paga il 5% del valore del contratto per ogni giorno di ritardo (max 30%).",
-    risk_level: "high",
-    risk_score: 75,
-    ai_flag: "Penale elevata",
-    ai_suggestion: "Considerare una riduzione della penale al 2% giornaliero o un periodo di tolleranza di 5 giorni lavorativi.",
-  },
-  {
-    id: "cl3",
-    contract_id: "c1",
-    clause_type: "Rinnovo Tacito",
-    original_text: "Il presente contratto si intende rinnovato tacitamente per periodi uguali a quello iniziale, salvo disdetta comunicata da una delle parti con almeno 30 giorni di preavviso rispetto alla scadenza.",
-    simplified_text: "Il contratto si rinnova automaticamente. Per disdirlo bisogna comunicarlo almeno 30 giorni prima della scadenza.",
-    risk_level: "medium",
-    risk_score: 45,
-    ai_flag: "Rinnovo automatico",
-    ai_suggestion: "Impostare un promemoria nel calendario 45 giorni prima della scadenza per valutare il rinnovo.",
-  },
-  {
-    id: "cl4",
-    contract_id: "c1",
-    clause_type: "Foro Competente",
-    original_text: "Per qualsiasi controversia derivante dal presente contratto sara competente in via esclusiva il Foro di Milano.",
-    simplified_text: "In caso di controversie legali, il tribunale competente e quello di Milano.",
-    risk_level: "low",
-    risk_score: 10,
-  },
-  {
-    id: "cl5",
-    contract_id: "c1",
-    clause_type: "Responsabilita",
-    original_text: "La responsabilita del Fornitore e limitata all'importo effettivamente ricevuto a titolo di corrispettivo, esclusa qualsiasi responsabilita per danni indiretti, mancati guadagni o perdita di dati.",
-    simplified_text: "La responsabilita del fornitore e limitata all'importo pagato. Non risponde di danni indiretti o perdita di dati.",
-    risk_level: "medium",
-    risk_score: 55,
-    ai_flag: "Limite di responsabilita",
-    ai_suggestion: "Verificare se il limite di responsabilita e adeguato rispetto al valore e alla criticita dei servizi.",
-  },
-]
+// Types
+type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
-const mockObligations: Obligation[] = [
-  {
-    id: "ob1",
-    contract_id: "c1",
-    party: "mine",
-    description: "Pagamento fatture entro 30 giorni data emissione",
-    due_date: "2025-04-15",
-    status: "pending",
-    recurrence: "monthly",
-  },
-  {
-    id: "ob2",
-    contract_id: "c1",
-    party: "theirs",
-    description: "Consegna report mensile attivita",
-    due_date: "2025-03-31",
-    status: "pending",
-    recurrence: "monthly",
-  },
-  {
-    id: "ob3",
-    contract_id: "c1",
-    party: "theirs",
-    description: "Manutenzione ordinaria sistemi",
-    due_date: "2025-04-01",
-    status: "pending",
-    recurrence: "quarterly",
-  },
-  {
-    id: "ob4",
-    contract_id: "c1",
-    party: "mine",
-    description: "Comunicazione requisiti aggiornati",
-    due_date: "2025-04-30",
-    status: "pending",
-  },
-  {
-    id: "ob5",
-    contract_id: "c1",
-    party: "theirs",
-    description: "Formazione personale su nuovi moduli",
-    due_date: "2025-03-25",
-    status: "completed",
-  },
-]
+interface Contract {
+  id: string
+  title: string
+  contract_type: string
+  counterpart_id?: string
+  counterpart_name?: string
+  employee_id?: string
+  employee_name?: string
+  status: ContractStatus
+  value: number
+  value_type: "total" | "annual" | "monthly"
+  start_date: string
+  end_date: string
+  signing_date?: string
+  auto_renewal: boolean
+  renewal_notice_days?: number
+  risk_score: number
+  reference_number?: string
+  ai_summary?: string
+}
 
-const mockMilestones: Milestone[] = [
-  {
-    id: "m1",
-    contract_id: "c1",
-    title: "Analisi preliminare",
-    description: "Analisi dei requisiti e definizione architettura",
-    due_date: "2024-02-15",
-    amount: 5000,
-    status: "completed",
-  },
-  {
-    id: "m2",
-    contract_id: "c1",
-    title: "Sviluppo modulo base",
-    description: "Implementazione funzionalita core del sistema",
-    due_date: "2024-04-30",
-    amount: 12000,
-    status: "completed",
-  },
-  {
-    id: "m3",
-    contract_id: "c1",
-    title: "Integrazione API",
-    description: "Integrazione con sistemi esterni",
-    due_date: "2025-03-31",
-    amount: 8000,
-    status: "in_progress",
-  },
-  {
-    id: "m4",
-    contract_id: "c1",
-    title: "Testing e QA",
-    description: "Test completi e fix bug",
-    due_date: "2025-04-30",
-    amount: 10000,
-    status: "scheduled",
-  },
-  {
-    id: "m5",
-    contract_id: "c1",
-    title: "Go-live e formazione",
-    description: "Messa in produzione e formazione utenti",
-    due_date: "2025-05-15",
-    amount: 10000,
-    status: "scheduled",
-  },
-]
+interface Counterpart {
+  id: string
+  name: string
+  type: string
+  reliability_score: number
+  reliability_label: string
+  has_anac_annotations: boolean
+}
+
+interface Employee {
+  id: string
+  full_name: string
+  role: string
+  department: string
+  employee_type: string
+}
+
+interface Invoice {
+  id: string
+  invoice_number: string
+  invoice_date: string
+  amount_gross: number
+  payment_status: string
+  counterpart_name: string
+  contract_id: string
+}
+
+interface Clause {
+  id: string
+  contract_id: string
+  clause_type: string
+  original_text: string
+  simplified_text?: string
+  page_number?: number
+  risk_level?: "low" | "medium" | "high" | "critical"
+  risk_explanation?: string
+  ai_flag?: string
+  ai_suggestion?: string
+  benchmark_comparison?: string
+  created_at?: string
+}
+
+interface Obligation {
+  id: string
+  contract_id: string
+  party: "mine" | "theirs"
+  description: string
+  obligation_type?: string
+  due_date?: string
+  recurrence?: "monthly" | "quarterly" | "annual"
+  recurrence_end_date?: string
+  status: "pending" | "completed" | "overdue" | "waived"
+  completed_at?: string
+  completion_note?: string
+  created_at?: string
+}
+
+interface Milestone {
+  id: string
+  contract_id: string
+  title: string
+  description?: string
+  due_date?: string
+  status: "upcoming" | "in_progress" | "delivered" | "approved" | "invoiceable" | "invoiced"
+  amount?: number
+  requires_approval?: boolean
+  approval_contact?: string
+  delivery_date?: string
+  approval_date?: string
+  invoice_id?: string
+  created_at?: string
+}
+
+// Utility functions
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+const formatDate = (dateStr: string): string => {
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(dateStr))
+}
+
+const daysUntil = (dateStr: string): number => {
+  const target = new Date(dateStr)
+  const today = new Date()
+  const diff = target.getTime() - today.getTime()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+const getStatusLabel = (status: ContractStatus): string => {
+  const labels: Record<ContractStatus, string> = {
+    draft: "Bozza",
+    negotiating: "In Negoziazione",
+    active: "Attivo",
+    expiring: "In Scadenza",
+    renewed: "Rinnovato",
+    terminated: "Terminato",
+  }
+  return labels[status] || status
+}
+
+const getStatusColor = (status: ContractStatus): string => {
+  switch (status) {
+    case "active": return "text-primary"
+    case "expiring": return "text-amber-400"
+    case "draft": return "text-muted-foreground"
+    case "negotiating": return "text-blue-400"
+    case "terminated": return "text-destructive"
+    case "renewed": return "text-emerald-400"
+    default: return "text-muted-foreground"
+  }
+}
+
+const getRiskColor = (score: number): string => {
+  if (score < 30) return "text-emerald-400"
+  if (score < 60) return "text-amber-400"
+  return "text-red-400"
+}
+
+// Empty arrays for clauses, obligations, milestones (will be fetched from Supabase later)
+const mockClauses: Clause[] = []
+const mockObligations: Obligation[] = []
+const mockMilestones: Milestone[] = []
 
 const mockNegotiationHistory = [
   {
@@ -291,32 +282,154 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
 export default function ContractDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
+  const supabase = createClient()
   const [contract, setContract] = useState<Contract | null>(null)
   const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [relatedInvoices, setRelatedInvoices] = useState<Invoice[]>([])
+  const [clauses, setClauses] = useState<Clause[]>([])
+  const [obligations, setObligations] = useState<Obligation[]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>("riepilogo")
-  const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low">("all")
+  const [riskFilter, setRiskFilter] = useState<"all" | "critical" | "high" | "medium" | "low">("all")
   const [obligationParty, setObligationParty] = useState<"mine" | "theirs">("mine")
   const [expandedClauses, setExpandedClauses] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const contractData = getContract(params.id as string)
-    if (contractData) {
-      setContract(contractData)
-      if (contractData.counterpart_id) {
-        setCounterpart(getCounterpart(contractData.counterpart_id))
-      }
-      if (contractData.employee_id) {
-        setEmployee(getEmployee(contractData.employee_id))
-      }
-      // Get related invoices
-      const invoices = getInvoices().filter(i => i.contract_id === contractData.id)
-      setRelatedInvoices(invoices)
-    }
-  }, [params.id])
+    if (!user) return
 
-  if (!contract) {
+    const fetchData = async () => {
+      try {
+        // Get user's company_id
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (userError) {
+          console.error('Error fetching user data:', userError)
+          setLoading(false)
+          return
+        }
+
+        if (!userData?.company_id) {
+          console.log('No company_id found for user')
+          setLoading(false)
+          return
+        }
+
+        // Fetch contract with counterpart and employee info
+        const { data: contractData, error: contractError } = await supabase
+          .from('contracts')
+          .select(`
+            *,
+            counterparts!contracts_counterpart_id_fkey(name, type, reliability_score, reliability_label, has_anac_annotations),
+            employees!contracts_employee_id_fkey(full_name, role, department, employee_type)
+          `)
+          .eq('id', params.id as string)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (contractError) {
+          console.error('Error fetching contract:', contractError)
+          throw contractError
+        }
+
+        if (contractData) {
+          const formattedContract: Contract = {
+            ...contractData,
+            counterpart_name: contractData.counterparts?.name,
+            employee_name: contractData.employees?.full_name,
+          }
+          setContract(formattedContract)
+
+          // Set counterpart data
+          if (contractData.counterparts) {
+            setCounterpart({
+              id: contractData.counterpart_id,
+              name: contractData.counterparts.name,
+              type: contractData.counterparts.type,
+              reliability_score: contractData.counterparts.reliability_score || 0,
+              reliability_label: contractData.counterparts.reliability_label || 'unverified',
+              has_anac_annotations: contractData.counterparts.has_anac_annotations || false,
+            })
+          }
+
+          // Set employee data
+          if (contractData.employees) {
+            setEmployee({
+              id: contractData.employee_id,
+              full_name: contractData.employees.full_name,
+              role: contractData.employees.role,
+              department: contractData.employees.department,
+              employee_type: contractData.employees.employee_type,
+            })
+          }
+
+          // Fetch related invoices
+          const { data: invoicesData } = await supabase
+            .from('invoices')
+            .select('*')
+            .eq('contract_id', contractData.id)
+            .order('invoice_date', { ascending: false })
+
+          if (invoicesData) {
+            setRelatedInvoices(invoicesData as Invoice[])
+          }
+
+          // Fetch clauses
+          const { data: clausesData, error: clausesError } = await supabase
+            .from('clauses')
+            .select('*')
+            .eq('contract_id', contractData.id)
+            .order('page_number', { ascending: true, nullsFirst: false })
+
+          if (clausesError) {
+            console.error('Error fetching clauses:', clausesError)
+          } else if (clausesData) {
+            setClauses(clausesData as Clause[])
+          }
+
+          // Fetch obligations
+          const { data: obligationsData, error: obligationsError } = await supabase
+            .from('obligations')
+            .select('*')
+            .eq('contract_id', contractData.id)
+            .order('due_date', { ascending: true, nullsFirst: false })
+
+          if (obligationsError) {
+            console.error('Error fetching obligations:', obligationsError)
+          } else if (obligationsData) {
+            setObligations(obligationsData as Obligation[])
+          }
+
+          // Fetch milestones
+          const { data: milestonesData, error: milestonesError } = await supabase
+            .from('milestones')
+            .select('*')
+            .eq('contract_id', contractData.id)
+            .order('due_date', { ascending: true, nullsFirst: false })
+
+          if (milestonesError) {
+            console.error('Error fetching milestones:', milestonesError)
+          } else if (milestonesData) {
+            setMilestones(milestonesData as Milestone[])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching contract data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [user, supabase, params.id])
+
+  if (loading || !contract) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
@@ -331,13 +444,13 @@ export default function ContractDetailPage() {
   const isHR = ["permanent", "fixed_term", "cococo", "apprenticeship", "internship", "collaboration"].includes(contract.contract_type)
 
   // Filter clauses by risk
-  const filteredClauses = mockClauses.filter(c => {
+  const filteredClauses = clauses.filter(c => {
     if (riskFilter === "all") return true
     return c.risk_level === riskFilter
   })
 
   // Filter obligations by party
-  const filteredObligations = mockObligations.filter(o => o.party === obligationParty)
+  const filteredObligations = obligations.filter(o => o.party === obligationParty)
 
   // Calculate invoice totals
   const totalInvoiced = relatedInvoices.reduce((sum, i) => sum + i.amount_gross, 0)
@@ -558,91 +671,185 @@ export default function ContractDetailPage() {
                     className="space-y-4"
                   >
                     {/* Risk Filter */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Filtro rischio:</span>
-                      <div className="flex gap-2">
-                        {(["all", "high", "medium", "low"] as const).map((filter) => (
-                          <button
-                            key={filter}
-                            onClick={() => setRiskFilter(filter)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              riskFilter === filter
-                                ? filter === "high" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
-                                  filter === "medium" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
-                                  filter === "low" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
-                                  "bg-primary/20 text-primary border border-primary/30"
-                                : "bg-muted/30 text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {filter === "all" ? "Tutte" : filter === "high" ? "Alto" : filter === "medium" ? "Medio" : "Basso"}
-                          </button>
-                        ))}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Filtro rischio:</span>
+                        <div className="flex gap-2">
+                          {(["all", "critical", "high", "medium", "low"] as const).map((filter) => {
+                            const count = filter === "all" 
+                              ? clauses.length 
+                              : clauses.filter(c => c.risk_level === filter).length
+                            
+                            return (
+                              <button
+                                key={filter}
+                                onClick={() => setRiskFilter(filter as any)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                  riskFilter === filter
+                                    ? filter === "critical" ? "bg-red-600/20 text-red-400 border border-red-600/30" :
+                                      filter === "high" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
+                                      filter === "medium" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
+                                      filter === "low" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                                      "bg-primary/20 text-primary border border-primary/30"
+                                    : "bg-muted/30 text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                {filter === "all" ? "Tutte" : 
+                                 filter === "critical" ? "Critico" :
+                                 filter === "high" ? "Alto" : 
+                                 filter === "medium" ? "Medio" : 
+                                 "Basso"}
+                                <span className="ml-1.5 opacity-60">({count})</span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
+
+                      {clauses.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Trovate {filteredClauses.length} di {clauses.length} clausole
+                        </div>
+                      )}
                     </div>
 
                     {/* Clauses List */}
-                    <div className="space-y-3">
-                      {filteredClauses.map((clause) => (
-                        <div
-                          key={clause.id}
-                          className="bg-muted/20 rounded-xl border border-border/20 overflow-hidden"
-                        >
+                    {filteredClauses.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FileText className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground">Nessuna clausola disponibile</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredClauses.map((clause) => (
                           <div
-                            className="flex items-center justify-between p-4 cursor-pointer"
-                            onClick={() => {
-                              const newExpanded = new Set(expandedClauses)
-                              if (newExpanded.has(clause.id)) {
-                                newExpanded.delete(clause.id)
-                              } else {
-                                newExpanded.add(clause.id)
-                              }
-                              setExpandedClauses(newExpanded)
-                            }}
+                            key={clause.id}
+                            className="bg-muted/20 rounded-xl border border-border/20 overflow-hidden"
                           >
-                            <div className="flex items-center gap-3">
-                              <span className={`w-2 h-2 rounded-full ${
-                                clause.risk_level === "high" ? "bg-red-400" :
-                                clause.risk_level === "medium" ? "bg-amber-400" :
-                                "bg-emerald-400"
-                              }`} />
-                              <span className="text-sm font-medium text-foreground">{clause.clause_type}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                clause.risk_level === "high" ? "bg-red-500/10 text-red-400" :
-                                clause.risk_level === "medium" ? "bg-amber-500/10 text-amber-400" :
-                                "bg-emerald-500/10 text-emerald-400"
-                              }`}>
-                                {clause.risk_score}%
-                              </span>
-                            </div>
-                            <ChevronDown className={`size-4 text-muted-foreground transition-transform ${
-                              expandedClauses.has(clause.id) ? "rotate-180" : ""
-                            }`} />
-                          </div>
-
-                          {expandedClauses.has(clause.id) && (
-                            <div className="px-4 pb-4 space-y-3">
-                              <div className="bg-muted/30 rounded-lg p-3">
-                                <div className="text-xs text-muted-foreground mb-1">Testo semplificato</div>
-                                <p className="text-sm text-foreground">{clause.simplified_text}</p>
-                              </div>
-                              <div className="bg-muted/30 rounded-lg p-3">
-                                <div className="text-xs text-muted-foreground mb-1">Testo originale</div>
-                                <p className="text-xs text-muted-foreground italic">{clause.original_text}</p>
-                              </div>
-                              {clause.ai_flag && (
-                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                                  <div className="flex items-center gap-2 text-amber-400 mb-1">
-                                    <AlertTriangle className="size-3.5" />
-                                    <span className="text-xs font-medium">{clause.ai_flag}</span>
+                            <div
+                              className="flex items-center justify-between p-4 cursor-pointer"
+                              onClick={() => {
+                                const newExpanded = new Set(expandedClauses)
+                                if (newExpanded.has(clause.id)) {
+                                  newExpanded.delete(clause.id)
+                                } else {
+                                  newExpanded.add(clause.id)
+                                }
+                                setExpandedClauses(newExpanded)
+                              }}
+                            >
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className={`w-2 h-2 rounded-full ${
+                                  clause.risk_level === "critical" ? "bg-red-600" :
+                                  clause.risk_level === "high" ? "bg-red-400" :
+                                  clause.risk_level === "medium" ? "bg-amber-400" :
+                                  "bg-emerald-400"
+                                }`} />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-foreground capitalize">
+                                      {clause.clause_type.replace(/_/g, ' ')}
+                                    </span>
+                                    {clause.page_number && (
+                                      <span className="text-xs text-muted-foreground">
+                                        (pag. {clause.page_number})
+                                      </span>
+                                    )}
                                   </div>
-                                  <p className="text-xs text-amber-400/80">{clause.ai_suggestion}</p>
+                                  {clause.simplified_text && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                      {clause.simplified_text}
+                                    </p>
+                                  )}
                                 </div>
-                              )}
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                  clause.risk_level === "critical" ? "bg-red-600/10 text-red-400" :
+                                  clause.risk_level === "high" ? "bg-red-500/10 text-red-400" :
+                                  clause.risk_level === "medium" ? "bg-amber-500/10 text-amber-400" :
+                                  "bg-emerald-500/10 text-emerald-400"
+                                }`}>
+                                  {clause.risk_level === "critical" ? "Critico" :
+                                   clause.risk_level === "high" ? "Alto" :
+                                   clause.risk_level === "medium" ? "Medio" :
+                                   "Basso"}
+                                </span>
+                              </div>
+                              <ChevronDown className={`size-4 text-muted-foreground transition-transform ${
+                                expandedClauses.has(clause.id) ? "rotate-180" : ""
+                              }`} />
                             </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+
+                            {expandedClauses.has(clause.id) && (
+                              <div className="px-4 pb-4 space-y-3">
+                                {clause.simplified_text && (
+                                  <div className="bg-muted/30 rounded-lg p-3">
+                                    <div className="text-xs text-muted-foreground mb-1.5 font-medium">
+                                      📝 Testo semplificato
+                                    </div>
+                                    <p className="text-sm text-foreground leading-relaxed">
+                                      {clause.simplified_text}
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="bg-muted/30 rounded-lg p-3">
+                                  <div className="text-xs text-muted-foreground mb-1.5 font-medium">
+                                    📄 Testo originale
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    {clause.original_text}
+                                  </p>
+                                </div>
+                                {clause.risk_explanation && (
+                                  <div className={`rounded-lg p-3 border ${
+                                    clause.risk_level === "critical" || clause.risk_level === "high"
+                                      ? "bg-red-500/5 border-red-500/20"
+                                      : clause.risk_level === "medium"
+                                      ? "bg-amber-500/5 border-amber-500/20"
+                                      : "bg-emerald-500/5 border-emerald-500/20"
+                                  }`}>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                      <Shield className="size-3.5" />
+                                      <span className="text-xs font-medium text-foreground">
+                                        Spiegazione del rischio
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                      {clause.risk_explanation}
+                                    </p>
+                                  </div>
+                                )}
+                                {clause.ai_flag && (
+                                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-amber-400 mb-1.5">
+                                      <AlertTriangle className="size-3.5" />
+                                      <span className="text-xs font-medium capitalize">
+                                        {clause.ai_flag.replace(/_/g, ' ')}
+                                      </span>
+                                    </div>
+                                    {clause.ai_suggestion && (
+                                      <p className="text-xs text-amber-400/80 leading-relaxed">
+                                        {clause.ai_suggestion}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {clause.benchmark_comparison && (
+                                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-blue-400 mb-1.5">
+                                      <Sparkles className="size-3.5" />
+                                      <span className="text-xs font-medium">Benchmark di mercato</span>
+                                    </div>
+                                    <p className="text-xs text-blue-400/80 leading-relaxed">
+                                      {clause.benchmark_comparison}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -680,62 +887,93 @@ export default function ContractDetailPage() {
                     </div>
 
                     {/* Obligations List */}
-                    <div className="space-y-3">
-                      {filteredObligations.map((obligation) => {
-                        const daysToDue = obligation.due_date ? daysUntil(obligation.due_date) : null
-                        return (
-                          <div
-                            key={obligation.id}
-                            className="bg-muted/20 rounded-xl border border-border/20 p-4"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`text-sm font-medium ${
-                                    obligation.status === "completed" ? "text-emerald-400" : "text-foreground"
-                                  }`}>
-                                    {obligation.description}
-                                  </span>
-                                  {obligation.recurrence && obligation.recurrence !== "none" && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                                      {obligation.recurrence === "monthly" ? "Mensile" :
-                                       obligation.recurrence === "quarterly" ? "Trimestrale" : "Annuale"}
+                    {filteredObligations.length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground">
+                          Nessun obbligo per {obligationParty === "mine" ? "la tua parte" : "l'altra parte"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredObligations.map((obligation) => {
+                          const daysToDue = obligation.due_date ? daysUntil(obligation.due_date) : null
+                          return (
+                            <div
+                              key={obligation.id}
+                              className={`bg-muted/20 rounded-xl border p-4 ${
+                                obligation.status === "completed" ? "border-emerald-500/20" :
+                                obligation.status === "overdue" ? "border-red-500/20" :
+                                "border-border/20"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span className={`text-sm font-medium ${
+                                      obligation.status === "completed" ? "text-emerald-400 line-through" : 
+                                      obligation.status === "waived" ? "text-muted-foreground line-through" :
+                                      "text-foreground"
+                                    }`}>
+                                      {obligation.description}
                                     </span>
+                                    {obligation.obligation_type && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground capitalize">
+                                        {obligation.obligation_type.replace(/_/g, ' ')}
+                                      </span>
+                                    )}
+                                    {obligation.recurrence && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                        {obligation.recurrence === "monthly" ? "🔄 Mensile" :
+                                         obligation.recurrence === "quarterly" ? "🔄 Trimestrale" : 
+                                         "🔄 Annuale"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {obligation.due_date && (
+                                    <div className={`text-xs flex items-center gap-1.5 ${
+                                      obligation.status === "overdue" ? "text-red-400" :
+                                      daysToDue !== null && daysToDue <= 7 ? "text-amber-400" :
+                                      daysToDue !== null && daysToDue <= 30 ? "text-amber-400/70" :
+                                      "text-muted-foreground"
+                                    }`}>
+                                      <Calendar className="size-3" />
+                                      Scadenza: {formatDate(obligation.due_date)}
+                                      {daysToDue !== null && daysToDue > 0 && ` (tra ${daysToDue} giorni)`}
+                                      {daysToDue !== null && daysToDue <= 0 && daysToDue > -30 && ` (scaduto da ${Math.abs(daysToDue)} giorni)`}
+                                    </div>
+                                  )}
+                                  {obligation.recurrence_end_date && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Ricorrenza fino al: {formatDate(obligation.recurrence_end_date)}
+                                    </div>
+                                  )}
+                                  {obligation.completion_note && (
+                                    <div className="text-xs text-emerald-400/80 mt-2 bg-emerald-500/10 rounded p-2 border border-emerald-500/20">
+                                      ✓ {obligation.completion_note}
+                                    </div>
                                   )}
                                 </div>
-                                {obligation.due_date && (
-                                  <div className={`text-xs ${
-                                    daysToDue !== null && daysToDue <= 7 ? "text-red-400" :
-                                    daysToDue !== null && daysToDue <= 30 ? "text-amber-400" :
-                                    "text-muted-foreground"
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                    obligation.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                                    obligation.status === "waived" ? "bg-muted/30 text-muted-foreground" :
+                                    obligation.status === "overdue" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                                    daysToDue !== null && daysToDue <= 7 ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                                    "bg-muted/30 text-muted-foreground"
                                   }`}>
-                                    Scadenza: {formatDate(obligation.due_date)}
-                                    {daysToDue !== null && daysToDue > 0 && ` (${daysToDue} giorni)`}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  obligation.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
-                                  obligation.status === "overdue" ? "bg-red-500/10 text-red-400" :
-                                  daysToDue !== null && daysToDue <= 7 ? "bg-amber-500/10 text-amber-400" :
-                                  "bg-muted/30 text-muted-foreground"
-                                }`}>
-                                  {obligation.status === "completed" ? "Completato" :
-                                   obligation.status === "overdue" ? "Scaduto" :
-                                   daysToDue !== null && daysToDue <= 7 ? "In scadenza" : "In programma"}
-                                </span>
-                                {obligation.status !== "completed" && (
-                                  <button className="text-xs px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                    Completa
-                                  </button>
-                                )}
+                                    {obligation.status === "completed" ? "✓ Completato" :
+                                     obligation.status === "waived" ? "Annullato" :
+                                     obligation.status === "overdue" ? "⚠ Scaduto" :
+                                     daysToDue !== null && daysToDue <= 7 ? "⏰ Urgente" : "📋 In programma"}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                          )
+                        })}
+                      </div>
+                    )}
 
                     <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors text-sm w-full justify-center">
                       <Plus className="size-4" />
@@ -753,77 +991,127 @@ export default function ContractDetailPage() {
                     exit={{ opacity: 0, y: -10 }}
                     className="space-y-4"
                   >
-                    <div className="relative">
-                      {/* Timeline line */}
-                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/30" />
+                    {milestones.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Calendar className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground">Nessuna milestone disponibile</p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        {/* Timeline line */}
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/30" />
 
-                      {/* Milestones */}
-                      <div className="space-y-4">
-                        {mockMilestones.map((milestone, index) => {
-                          const daysToDue = milestone.due_date ? daysUntil(milestone.due_date) : null
-                          return (
-                            <div key={milestone.id} className="relative flex gap-4">
-                              {/* Dot */}
-                              <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center ${
-                                milestone.status === "completed" ? "bg-emerald-500" :
-                                milestone.status === "in_progress" ? "bg-amber-500" :
-                                "bg-muted"
-                              }`}>
-                                {milestone.status === "completed" ? (
-                                  <CheckCircle2 className="size-4 text-white" />
-                                ) : milestone.status === "in_progress" ? (
-                                  <Clock className="size-4 text-white" />
-                                ) : (
-                                  <Calendar className="size-4 text-muted-foreground" />
-                                )}
-                              </div>
+                        {/* Milestones */}
+                        <div className="space-y-4">
+                          {milestones.map((milestone, index) => {
+                            const daysToDue = milestone.due_date ? daysUntil(milestone.due_date) : null
+                            return (
+                              <div key={milestone.id} className="relative flex gap-4">
+                                {/* Dot */}
+                                <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${
+                                  milestone.status === "approved" || milestone.status === "invoiced" ? "bg-emerald-500" :
+                                  milestone.status === "delivered" ? "bg-blue-500" :
+                                  milestone.status === "in_progress" ? "bg-amber-500" :
+                                  milestone.status === "invoiceable" ? "bg-purple-500" :
+                                  "bg-muted"
+                                }`}>
+                                  {milestone.status === "approved" || milestone.status === "invoiced" ? (
+                                    <CheckCircle2 className="size-4 text-white" />
+                                  ) : milestone.status === "delivered" ? (
+                                    <FileText className="size-4 text-white" />
+                                  ) : milestone.status === "in_progress" ? (
+                                    <Clock className="size-4 text-white" />
+                                  ) : milestone.status === "invoiceable" ? (
+                                    <Euro className="size-4 text-white" />
+                                  ) : (
+                                    <Calendar className="size-4 text-muted-foreground" />
+                                  )}
+                                </div>
 
-                              {/* Content */}
-                              <div className="flex-1 bg-muted/20 rounded-xl border border-border/20 p-4">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div>
-                                    <h4 className="text-sm font-medium text-foreground">{milestone.title}</h4>
-                                    <p className="text-xs text-muted-foreground mt-1">{milestone.description}</p>
-                                    <div className="flex items-center gap-3 mt-2">
-                                      {milestone.due_date && (
-                                        <span className={`text-xs ${
-                                          daysToDue !== null && daysToDue <= 7 ? "text-amber-400" : "text-muted-foreground"
-                                        }`}>
-                                          {formatDate(milestone.due_date)}
-                                        </span>
+                                {/* Content */}
+                                <div className={`flex-1 bg-muted/20 rounded-xl border p-4 ${
+                                  milestone.status === "approved" || milestone.status === "invoiced" ? "border-emerald-500/20" :
+                                  milestone.status === "invoiceable" ? "border-purple-500/20" :
+                                  "border-border/20"
+                                }`}>
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="text-sm font-medium text-foreground">{milestone.title}</h4>
+                                        {milestone.requires_approval && (
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                            ✓ Richiede approvazione
+                                          </span>
+                                        )}
+                                      </div>
+                                      {milestone.description && (
+                                        <p className="text-xs text-muted-foreground mt-1">{milestone.description}</p>
                                       )}
-                                      {milestone.amount && (
-                                        <span className="text-xs font-medium text-foreground">
-                                          {formatCurrency(milestone.amount)}
-                                        </span>
+                                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                        {milestone.due_date && (
+                                          <span className={`text-xs flex items-center gap-1 ${
+                                            daysToDue !== null && daysToDue <= 7 && milestone.status === "upcoming" ? "text-amber-400" : 
+                                            "text-muted-foreground"
+                                          }`}>
+                                            <Calendar className="size-3" />
+                                            Scadenza: {formatDate(milestone.due_date)}
+                                            {daysToDue !== null && daysToDue > 0 && milestone.status === "upcoming" && ` (tra ${daysToDue}gg)`}
+                                          </span>
+                                        )}
+                                        {milestone.delivery_date && (
+                                          <span className="text-xs text-blue-400 flex items-center gap-1">
+                                            <FileText className="size-3" />
+                                            Consegnato: {formatDate(milestone.delivery_date)}
+                                          </span>
+                                        )}
+                                        {milestone.approval_date && (
+                                          <span className="text-xs text-emerald-400 flex items-center gap-1">
+                                            <CheckCircle2 className="size-3" />
+                                            Approvato: {formatDate(milestone.approval_date)}
+                                          </span>
+                                        )}
+                                        {milestone.amount && (
+                                          <span className="text-xs font-medium text-foreground bg-muted/50 px-2 py-0.5 rounded">
+                                            {formatCurrency(milestone.amount)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {milestone.approval_contact && (
+                                        <div className="text-xs text-muted-foreground mt-2">
+                                          Referente approvazione: {milestone.approval_contact}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                        milestone.status === "invoiced" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                                        milestone.status === "approved" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                                        milestone.status === "invoiceable" ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" :
+                                        milestone.status === "delivered" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                                        milestone.status === "in_progress" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                                        "bg-muted/30 text-muted-foreground"
+                                      }`}>
+                                        {milestone.status === "invoiced" ? "✓ Fatturato" :
+                                         milestone.status === "approved" ? "✓ Approvato" :
+                                         milestone.status === "invoiceable" ? "💰 Da fatturare" :
+                                         milestone.status === "delivered" ? "📦 Consegnato" :
+                                         milestone.status === "in_progress" ? "⚡ In corso" :
+                                         "📅 Pianificato"}
+                                      </span>
+                                      {milestone.status === "invoiceable" && !milestone.invoice_id && (
+                                        <button className="text-xs px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium">
+                                          Genera fattura
+                                        </button>
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-xs px-2 py-1 rounded-full ${
-                                      milestone.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
-                                      milestone.status === "in_progress" ? "bg-amber-500/10 text-amber-400" :
-                                      milestone.status === "billable" ? "bg-purple-500/10 text-purple-400" :
-                                      "bg-muted/30 text-muted-foreground"
-                                    }`}>
-                                      {milestone.status === "completed" ? "Completato" :
-                                       milestone.status === "in_progress" ? "In corso" :
-                                       milestone.status === "billable" ? "Fatturabile" :
-                                       "Programmato"}
-                                    </span>
-                                    {milestone.status === "billable" && (
-                                      <button className="text-xs px-2 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                                        Genera fattura
-                                      </button>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -1196,7 +1484,7 @@ export default function ContractDetailPage() {
               </div>
 
               <div className="text-sm text-muted-foreground mb-3">
-                {employee.department} · {employee.employee_type === "employee" ? "Dipendente" : "Collaboratore"}
+                {employee.department} - {employee.employee_type === "employee" ? "Dipendente" : "Collaboratore"}
               </div>
 
               <Link
