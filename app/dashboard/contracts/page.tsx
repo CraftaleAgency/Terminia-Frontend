@@ -15,6 +15,7 @@ import {
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
@@ -314,8 +315,19 @@ export default function ContractsPage() {
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
         {loading ? (
-          <div className="px-6 py-12 text-center">
-            <div className="text-muted-foreground">Caricamento...</div>
+          <div className="divide-y divide-border/10">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-64" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+              </div>
+            ))}
           </div>
         ) : filteredContracts.length === 0 ? (
           <div className="px-6 py-12 text-center">

@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Counterpart {
   id: string
@@ -244,8 +245,19 @@ export default function CounterpartsPage() {
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
         {loading ? (
-          <div className="px-6 py-12 text-center">
-            <div className="text-muted-foreground">Caricamento...</div>
+          <div className="divide-y divide-border/10">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 flex items-center gap-4">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+              </div>
+            ))}
           </div>
         ) : filteredCounterparts.length === 0 ? (
           <div className="px-6 py-12 text-center">
