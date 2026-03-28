@@ -34,6 +34,8 @@ import {
 } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { verifyCounterpartAction } from "@/lib/actions/osint"
+import { toast } from "sonner"
 
 export default function CounterpartDetailPage() {
   const params = useParams()
@@ -43,6 +45,7 @@ export default function CounterpartDetailPage() {
   const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
   const [relatedContracts, setRelatedContracts] = useState<Contract[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastVerified, setLastVerified] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -96,10 +99,38 @@ export default function CounterpartDetailPage() {
   }, [user, supabase, params.id])
 
   const handleRefreshVerification = async () => {
+    if (!counterpart) return
     setIsRefreshing(true)
-    // Simulate OSINT refresh
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsRefreshing(false)
+    try {
+      const result = await verifyCounterpartAction({
+        vatNumber: counterpart.vat_number,
+        companyName: counterpart.name,
+        counterpartId: counterpart.id,
+      })
+      if (result.success && result.data) {
+        const d = result.data
+        setCounterpart(prev => prev ? {
+          ...prev,
+          reliability_score: d.reliability_score,
+          reliability_label: d.reliability_label as typeof prev.reliability_label,
+          score_legal: d.dimensions.legal,
+          score_contributory: d.dimensions.contributory,
+          score_reputation: d.dimensions.reputation,
+          score_solidity: d.dimensions.solidity,
+          score_consistency: d.dimensions.consistency,
+          vat_verified: d.vat.valid === true,
+          has_anac_annotations: d.anac.annotations,
+        } : prev)
+        toast.success("Verifica aggiornata con successo")
+        setLastVerified(new Date().toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }))
+      } else {
+        toast.error(result.error || "Errore durante la verifica OSINT")
+      }
+    } catch {
+      toast.error("Errore di connessione durante la verifica")
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   if (loading) {
@@ -271,7 +302,7 @@ export default function CounterpartDetailPage() {
                   {getReliabilityLabel(counterpart.reliability_label)}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Aggiornato: oggi 08:30
+                  Aggiornato: {lastVerified || "oggi 08:30"}
                 </div>
               </div>
             </div>

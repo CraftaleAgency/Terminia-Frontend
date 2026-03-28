@@ -33,8 +33,10 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { reanalyzeContractAction } from "@/lib/actions/contracts"
 
 // Types
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
@@ -296,6 +298,27 @@ export default function ContractDetailPage() {
   const [riskFilter, setRiskFilter] = useState<"all" | "critical" | "high" | "medium" | "low">("all")
   const [obligationParty, setObligationParty] = useState<"mine" | "theirs">("mine")
   const [expandedClauses, setExpandedClauses] = useState<Set<string>>(new Set())
+  const [isReanalyzing, setIsReanalyzing] = useState(false)
+
+  const handleReanalyze = async () => {
+    const contractId = params.id as string
+    if (!contractId) return
+    setIsReanalyzing(true)
+    try {
+      const result = await reanalyzeContractAction(contractId)
+      if (result.success) {
+        toast.success("Analisi AI rigenerata con successo")
+        router.refresh()
+        window.location.reload()
+      } else {
+        toast.error(result.error || "Errore durante la ri-analisi del contratto")
+      }
+    } catch {
+      toast.error("Errore imprevisto durante la ri-analisi")
+    } finally {
+      setIsReanalyzing(false)
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -508,6 +531,14 @@ export default function ContractDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleReanalyze}
+            disabled={isReanalyzing}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`size-4 ${isReanalyzing ? "animate-spin" : ""}`} />
+            {isReanalyzing ? "Analisi in corso..." : "🔄 Rigenera Analisi"}
+          </button>
           <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted/30 text-foreground hover:bg-muted/50 transition-colors text-sm">
             <Edit className="size-4" />
             Modifica

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { verifyCounterpartAction } from "@/lib/actions/osint"
 
 type CounterpartType = "supplier" | "client" | "partner"
 
@@ -41,9 +42,38 @@ export default function NewCounterpartPage() {
     notes: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [vatStatus, setVatStatus] = useState<"idle" | "loading" | "valid" | "invalid">("idle")
+  const lastCheckedVat = useRef<string>("")
+
+  const handleVatBlur = useCallback(async () => {
+    const vat = formData.vat_number.trim()
+    if (!vat || vat === lastCheckedVat.current) return
+    if (!/^(IT)?[0-9]{11}$/.test(vat)) return
+
+    lastCheckedVat.current = vat
+    setVatStatus("loading")
+    try {
+      const result = await verifyCounterpartAction({ vatNumber: vat })
+      if (result.success && result.data) {
+        const isValid = result.data.vat.valid === true
+        setVatStatus(isValid ? "valid" : "invalid")
+        if (isValid && result.data.vat.name && !formData.name) {
+          setFormData(prev => ({ ...prev, name: result.data!.vat.name! }))
+        }
+      } else {
+        setVatStatus("invalid")
+      }
+    } catch {
+      setVatStatus("idle")
+    }
+  }, [formData.vat_number, formData.name])
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === "vat_number") {
+      setVatStatus("idle")
+      lastCheckedVat.current = ""
+    }
     // Clear error when user types
     if (errors[field]) {
       setErrors(prev => {
@@ -193,11 +223,30 @@ export default function NewCounterpartPage() {
                   type="text"
                   value={formData.vat_number}
                   onChange={(e) => handleChange("vat_number", e.target.value.toUpperCase())}
+                  onBlur={handleVatBlur}
                   placeholder="IT12345678901"
                   className={`w-full px-4 py-2.5 rounded-xl bg-muted/30 border ${
                     errors.vat_number ? "border-red-500/50" : "border-border/20"
                   } text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30`}
                 />
+                {vatStatus === "loading" && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Loader2 className="size-3 animate-spin" />
+                    ⏳ Verifica in corso...
+                  </p>
+                )}
+                {vatStatus === "valid" && (
+                  <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="size-3" />
+                    ✅ P.IVA valida
+                  </p>
+                )}
+                {vatStatus === "invalid" && (
+                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="size-3" />
+                    ❌ P.IVA non valida
+                  </p>
+                )}
                 {errors.vat_number && (
                   <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
                     <AlertCircle className="size-3" />

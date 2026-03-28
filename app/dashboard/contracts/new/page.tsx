@@ -30,6 +30,66 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { formatCurrency, type Counterpart, type Employee } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { analyzeContractAction } from "@/lib/actions/contracts"
+import { verifyCounterpartAction } from "@/lib/actions/osint"
+import type { AnalyzeResponse, OSINTResponse } from "@/lib/ai/client"
+import { toast } from "sonner"
+
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  service_supply: "Fornitura Servizi",
+  goods_supply: "Fornitura Beni",
+  framework: "Accordo Quadro",
+  nda: "NDA / Riservatezza",
+  agency: "Agenzia",
+  partnership: "Partnership",
+  permanent: "Tempo Indeterminato",
+  fixed_term: "Tempo Determinato",
+  cococo: "Co.Co.Co.",
+  apprenticeship: "Apprendistato",
+  internship: "Stage / Tirocinio",
+  collaboration: "Collaborazione",
+}
+
+function mapContractType(aiType: string): ContractType {
+  const map: Record<string, ContractType> = {
+    service_supply: "service_supply",
+    goods_supply: "goods_supply",
+    framework: "framework",
+    nda: "nda",
+    agency: "agency",
+    partnership: "partnership",
+    permanent: "permanent",
+    fixed_term: "fixed_term",
+    cococo: "cococo",
+    apprenticeship: "apprenticeship",
+    internship: "internship",
+    collaboration: "collaboration",
+    // Italian variants the model might return
+    fornitura_servizi: "service_supply",
+    fornitura_beni: "goods_supply",
+    accordo_quadro: "framework",
+    tempo_indeterminato: "permanent",
+    tempo_determinato: "fixed_term",
+    apprendistato: "apprenticeship",
+    stage: "internship",
+    collaborazione: "collaboration",
+  }
+  return map[aiType.toLowerCase().replace(/\s+/g, "_")] || "service_supply"
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Remove data URL prefix (e.g. "data:application/pdf;base64,")
+      const base64 = result.includes(",") ? result.split(",")[1] : result
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 type CreationMode = "upload" | "manual"
 type ContractType = "service_supply" | "goods_supply" | "framework" | "nda" | "agency" | "partnership" | "permanent" | "fixed_term" | "cococo" | "apprenticeship" | "internship" | "collaboration"
@@ -61,6 +121,8 @@ function NewContractContent() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [osintProgress, setOsintProgress] = useState(0)
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null)
+  const [osintResult, setOsintResult] = useState<OSINTResponse | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -143,51 +205,74 @@ function NewContractContent() {
     setExpandedSections(newExpanded)
   }
 
-  const handleFileUpload = useCallback((file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     setUploadedFile(file)
     setUploadStep("analyzing")
     setUploadProgress(0)
+    setAnalysisResult(null)
+    setOsintResult(null)
 
-    // Simulate upload progress
+    // Animate progress while waiting for the API
     const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          // Start AI analysis
-          simulateAIAnalysis()
-          return 100
-        }
-        return prev + 10
-      })
-    }, 100)
-  }, [])
+      setUploadProgress(prev => (prev >= 90 ? 90 : prev + 10))
+    }, 120)
 
-  const simulateAIAnalysis = () => {
-    // Simulate AI classification
-    setTimeout(() => {
-      // Random confidence between 70 and 95
-      const confidence = Math.floor(Math.random() * 26) + 70
+    try {
+      const base64 = await fileToBase64(file)
+
+      const result = await analyzeContractAction({
+        documentBase64: base64,
+        contentType: file.type,
+      })
+
+      clearInterval(interval)
+      setUploadProgress(100)
+
+      if (!result.success || !result.data) {
+        toast.error(
+          result.error || "Servizio AI temporaneamente non disponibile. Puoi inserire i dati manualmente.",
+        )
+        setUploadStep("preview")
+        return
+      }
+
+      const analysis = result.data
+      setAnalysisResult(analysis)
+
+      const confidence = Math.round(
+        (analysis.classification.confidence >= 1
+          ? analysis.classification.confidence
+          : analysis.classification.confidence * 100),
+      )
+      setAiConfidence(confidence)
+
+      // Map extracted data to form fields
+      const parties = analysis.extraction.parties ?? []
+      const counterparty = parties.find(
+        (p) => p.role !== "client" && p.role !== "committente" && p.role !== "buyer",
+      )
+      const contractType = mapContractType(analysis.classification.contract_type)
+      const isEmployee = analysis.classification.counterpart_type === "employee"
+
+      setFormData(prev => ({
+        ...prev,
+        title: counterparty?.name
+          ? `${CONTRACT_TYPE_LABELS[contractType] || analysis.classification.contract_type} – ${counterparty.name}`
+          : CONTRACT_TYPE_LABELS[contractType] || analysis.classification.contract_type,
+        contract_type: contractType,
+        actor_type: isEmployee ? "employee" as ActorType : "counterpart" as ActorType,
+        value: analysis.extraction.total_value?.toString() || "",
+        value_type: "total" as const,
+        start_date: analysis.extraction.start_date || "",
+        end_date: analysis.extraction.end_date || "",
+        auto_renewal: analysis.extraction.auto_renewable || false,
+      }))
 
       if (confidence >= 85) {
-        // High confidence - go directly to preview
-        setAiConfidence(confidence)
+        // High confidence — show classified step, then preview
         setUploadStep("classified")
-        setTimeout(() => {
-          setUploadStep("preview")
-          // Pre-fill form with AI extracted data
-          setFormData(prev => ({
-            ...prev,
-            title: "Contratto Fornitura Servizi IT",
-            contract_type: "service_supply",
-            value: "45000",
-            value_type: "annual",
-            start_date: "2024-01-15",
-            end_date: "2025-05-31",
-          }))
-        }, 1500)
       } else {
-        // Low confidence - need questions
-        setAiConfidence(confidence)
+        // Low confidence — ask user to confirm uncertain fields
         setAiQuestions([
           {
             id: "q1",
@@ -215,10 +300,18 @@ function NewContractContent() {
             ],
           },
         ])
+        setCurrentQuestionIndex(0)
         setUploadStep("questions")
       }
-    }, 2000)
-  }
+    } catch {
+      clearInterval(interval)
+      toast.error("Errore di rete. Riprova più tardi.", {
+        action: { label: "Riprova", onClick: () => handleFileUpload(file) },
+      })
+      setUploadStep("upload")
+      setUploadProgress(0)
+    }
+  }, [])
 
   const handleQuestionAnswer = (questionId: string, answer: string) => {
     // Process answer
@@ -234,28 +327,54 @@ function NewContractContent() {
     if (currentQuestionIndex < aiQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1)
     } else {
-      // Questions complete - start OSINT verification for counterpart
+      // Questions complete — start OSINT verification for counterpart
       if (formData.actor_type === "counterpart") {
         setUploadStep("osint")
-        simulateOSINTVerification()
+        runOSINTVerification()
       } else {
         setUploadStep("preview")
       }
     }
   }
 
-  const simulateOSINTVerification = () => {
+  const runOSINTVerification = async () => {
+    setOsintProgress(0)
+    setOsintResult(null)
+
+    // Animate progress while waiting for the API
     const interval = setInterval(() => {
-      setOsintProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setReliabilityScore(Math.floor(Math.random() * 40) + 60) // 60-100
-          setTimeout(() => setUploadStep("preview"), 1000)
-          return 100
-        }
-        return prev + 5
-      })
+      setOsintProgress(prev => (prev >= 90 ? 90 : prev + 5))
     }, 150)
+
+    try {
+      const parties = analysisResult?.extraction.parties ?? []
+      const counterparty = parties.find(
+        (p) => p.role !== "client" && p.role !== "committente" && p.role !== "buyer",
+      )
+
+      const result = await verifyCounterpartAction({
+        vatNumber: counterparty?.vat_number,
+        companyName: counterparty?.name,
+      })
+
+      clearInterval(interval)
+      setOsintProgress(100)
+
+      if (result.success && result.data) {
+        setOsintResult(result.data)
+        setReliabilityScore(result.data.reliability_score)
+      } else {
+        toast.error(result.error || "Verifica OSINT non disponibile")
+        setReliabilityScore(null)
+      }
+
+      setTimeout(() => setUploadStep("preview"), 1200)
+    } catch {
+      clearInterval(interval)
+      setOsintProgress(100)
+      toast.error("Errore di rete nella verifica controparte")
+      setTimeout(() => setUploadStep("preview"), 800)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -405,7 +524,14 @@ function NewContractContent() {
                 </div>
                 <div className="bg-muted/20 rounded-xl p-4 mb-4">
                   <div className="text-sm text-muted-foreground mb-1">Tipo rilevato</div>
-                  <div className="text-foreground font-medium">Contratto di Fornitura Servizi</div>
+                  <div className="text-foreground font-medium">
+                    {CONTRACT_TYPE_LABELS[formData.contract_type] || formData.contract_type}
+                  </div>
+                  {analysisResult?.extraction.parties && analysisResult.extraction.parties.length > 0 && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Parti: {analysisResult.extraction.parties.map(p => p.name).join(", ")}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => setUploadStep("preview")}
@@ -426,7 +552,7 @@ function NewContractContent() {
                       Contratto non classificato con certezza
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Abbiamo bisogno di alcune informazioni
+                      Confidenza AI: {aiConfidence}% — Conferma i dati estratti
                     </p>
                   </div>
                 </div>
@@ -476,24 +602,92 @@ function NewContractContent() {
                 </div>
 
                 {osintProgress === 100 && reliabilityScore && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-muted-foreground">Reliability Score</div>
-                        <div className={`text-2xl font-bold ${
+                  <div className="space-y-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Reliability Score</div>
+                          <div className={`text-2xl font-bold ${
+                            reliabilityScore >= 80 ? "text-emerald-400" :
+                            reliabilityScore >= 60 ? "text-primary" :
+                            "text-amber-400"
+                          }`}>
+                            {reliabilityScore}/100
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {osintResult?.reliability_label ||
+                              (reliabilityScore >= 80 ? "Eccellente" :
+                               reliabilityScore >= 60 ? "Buono" : "Attenzione")}
+                          </div>
+                        </div>
+                        <CheckCircle2 className={`size-10 ${
                           reliabilityScore >= 80 ? "text-emerald-400" :
                           reliabilityScore >= 60 ? "text-primary" :
                           "text-amber-400"
-                        }`}>
-                          {reliabilityScore}/100
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {reliabilityScore >= 80 ? "Eccellente" :
-                           reliabilityScore >= 60 ? "Buono" : "Attenzione"}
+                        }`} />
+                      </div>
+                    </div>
+
+                    {/* Verification status */}
+                    {osintResult && (
+                      <div className="bg-muted/20 rounded-xl p-4 space-y-2 text-sm">
+                        {osintResult.vat.valid !== null && (
+                          <div className="flex items-center gap-2">
+                            <span>{osintResult.vat.valid ? "✅" : "❌"}</span>
+                            <span>{osintResult.vat.valid ? "P.IVA valida" : "P.IVA non valida"}</span>
+                            {osintResult.vat.name && (
+                              <span className="text-muted-foreground">— {osintResult.vat.name}</span>
+                            )}
+                          </div>
+                        )}
+                        {osintResult.anac.checked && (
+                          <div className="flex items-center gap-2">
+                            <span>{osintResult.anac.annotations ? "⚠️" : "✅"}</span>
+                            <span>
+                              {osintResult.anac.annotations
+                                ? `Annotazione ANAC: ${osintResult.anac.details || "presente"}`
+                                : "Nessuna annotazione ANAC"}
+                            </span>
+                          </div>
+                        )}
+                        {osintResult.fiscal_code && (
+                          <div className="flex items-center gap-2">
+                            <span>{osintResult.fiscal_code.valid ? "✅" : "❌"}</span>
+                            <span>
+                              Codice Fiscale {osintResult.fiscal_code.valid ? "valido" : "non valido"}
+                              {osintResult.fiscal_code.checksum_ok ? "" : " (checksum errato)"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Dimension breakdown */}
+                    {osintResult?.dimensions && (
+                      <div className="bg-muted/20 rounded-xl p-4">
+                        <div className="text-xs text-muted-foreground mb-3">DETTAGLIO DIMENSIONI</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {Object.entries(osintResult.dimensions).map(([key, value]) => (
+                            <div key={key} className="flex items-center justify-between">
+                              <span className="text-muted-foreground capitalize">{key}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      value >= 80 ? "bg-emerald-400" :
+                                      value >= 60 ? "bg-primary" :
+                                      "bg-amber-400"
+                                    }`}
+                                    style={{ width: `${value}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium w-6 text-right">{value}</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <CheckCircle2 className="size-10 text-emerald-400" />
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
