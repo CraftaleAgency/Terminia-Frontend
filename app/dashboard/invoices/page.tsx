@@ -32,12 +32,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
-  getInvoicesByType,
-  getInvoiceKPIs,
-  saveInvoice,
-  markInvoiceAsPaid,
-  getCounterparts,
-  getContracts,
   formatCurrency,
   formatDate,
   daysUntil,
@@ -47,9 +41,12 @@ import {
   type Counterpart,
   type Contract,
   type InvoiceType,
+  type PaymentStatus,
 } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 // Status filter options
 const STATUS_OPTIONS = [
@@ -63,9 +60,13 @@ const STATUS_OPTIONS = [
 const VAT_RATES = [22, 10, 5, 4, 0]
 
 export default function InvoicesPage() {
+  const { user } = useUser()
+  const supabase = createClient()
+
   // State
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("active")
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState({
     unpaid: 0,
     paid: 0,
@@ -84,6 +85,7 @@ export default function InvoicesPage() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
   const [counterparts, setCounterparts] = useState<Counterpart[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [companyId, setCompanyId] = useState<string | null>(null)
 
   // Form state for new invoice
   const [formData, setFormData] = useState({
@@ -98,17 +100,86 @@ export default function InvoicesPage() {
     notes: "",
   })
 
-  // Load data
+  // Load data from Supabase
   useEffect(() => {
-    const loadData = () => {
-      const invoiceData = getInvoicesByType(invoiceType)
-      setInvoices(invoiceData)
-      setKpis(getInvoiceKPIs(invoiceType))
-      setCounterparts(getCounterparts())
-      setContracts(getContracts())
+    if (!user) return
+
+    const fetchData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        setCompanyId(userData.company_id)
+
+        // Fetch invoices
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from('invoices')
+          .select(`
+            *,
+            counterparts(name),
+            contracts(title)
+          `)
+          .eq('company_id', userData.company_id)
+          .eq('invoice_type', invoiceType)
+          .order('invoice_date', { ascending: false })
+
+        if (invoiceError) throw invoiceError
+
+        const formattedInvoices = invoiceData?.map(inv => ({
+          ...inv,
+          counterpart_name: inv.counterparts?.name,
+          contract_name: inv.contracts?.title,
+        })) || []
+
+        setInvoices(formattedInvoices)
+
+        // Calculate KPIs
+        const unpaid = formattedInvoices.filter(i => i.payment_status === 'unpaid')
+        const paid = formattedInvoices.filter(i => i.payment_status === 'paid')
+        const overdue = formattedInvoices.filter(i => i.payment_status === 'overdue')
+
+        setKpis({
+          unpaid: unpaid.length,
+          paid: paid.length,
+          overdue: overdue.length,
+          toCollect: unpaid.reduce((sum, i) => sum + i.amount_gross, 0),
+          collected: paid.reduce((sum, i) => sum + i.amount_gross, 0),
+          overdueAmount: overdue.reduce((sum, i) => sum + i.amount_gross, 0),
+        })
+
+        // Fetch counterparts
+        const { data: counterpartData } = await supabase
+          .from('counterparts')
+          .select('*')
+          .eq('company_id', userData.company_id)
+
+        setCounterparts(counterpartData || [])
+
+        // Fetch contracts
+        const { data: contractData } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('company_id', userData.company_id)
+
+        setContracts(contractData || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-    loadData()
-  }, [invoiceType])
+
+    fetchData()
+  }, [user, supabase, invoiceType])
 
   // Filtered invoices
   const filteredInvoices = useMemo(() => {
@@ -173,7 +244,7 @@ export default function InvoicesPage() {
   }, [contracts, formData.counterpart_id])
 
   // Handle form submit
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!formData.invoice_number || !formData.counterpart_id || !formData.invoice_date || !formData.due_date || formData.amount_net <= 0) {
       toast.error("Compila tutti i campi obbligatori")
       return
@@ -184,31 +255,33 @@ export default function InvoicesPage() {
       return
     }
 
-    const counterpart = counterparts.find(c => c.id === formData.counterpart_id)
-    const contract = contracts.find(c => c.id === formData.contract_id)
+    if (!companyId) {
+      toast.error("Errore: azienda non trovata")
+      return
+    }
 
-    const newInvoice = saveInvoice({
-      invoice_type: formData.invoice_type,
-      invoice_number: formData.invoice_number,
-      counterpart_id: formData.counterpart_id,
-      counterpart_name: counterpart?.name,
-      contract_id: formData.contract_id || undefined,
-      contract_name: contract?.title,
-      invoice_date: formData.invoice_date,
-      due_date: formData.due_date,
-      amount_net: formData.amount_net,
-      vat_rate: formData.vat_rate,
-      amount_gross: calculatedGross,
-      payment_status: "unpaid",
-      notes: formData.notes || undefined,
-    })
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .insert({
+          company_id: companyId,
+          invoice_type: formData.invoice_type,
+          invoice_number: formData.invoice_number,
+          counterpart_id: formData.counterpart_id,
+          contract_id: formData.contract_id || null,
+          invoice_date: formData.invoice_date,
+          due_date: formData.due_date,
+          amount_net: formData.amount_net,
+          vat_rate: formData.vat_rate,
+          amount_gross: calculatedGross,
+          payment_status: "unpaid",
+          notes: formData.notes || null,
+        })
 
-    if (newInvoice) {
+      if (error) throw error
+
       toast.success("Fattura salvata con successo")
       setIsAddModalOpen(false)
-      // Refresh data
-      setInvoices(getInvoicesByType(invoiceType))
-      setKpis(getInvoiceKPIs(invoiceType))
       // Reset form
       setFormData({
         invoice_type: invoiceType,
@@ -221,24 +294,40 @@ export default function InvoicesPage() {
         vat_rate: 22,
         notes: "",
       })
+      // Trigger refresh by changing loading state
+      setLoading(true)
+    } catch (error) {
+      console.error('Error saving invoice:', error)
+      toast.error("Errore nel salvataggio della fattura")
     }
-  }, [formData, counterparts, contracts, calculatedGross, invoiceType])
+  }, [formData, companyId, calculatedGross, invoiceType, supabase])
 
   // Handle mark as paid
-  const handleMarkAsPaid = useCallback(() => {
+  const handleMarkAsPaid = useCallback(async () => {
     if (!selectedInvoice) return
 
-    const updated = markInvoiceAsPaid(selectedInvoice.id, paymentDate)
-    if (updated) {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          payment_status: 'paid',
+          payment_date: paymentDate
+        })
+        .eq('id', selectedInvoice.id)
+
+      if (error) throw error
+
       toast.success("Fattura segnata come pagata")
       setIsPayModalOpen(false)
       setSelectedInvoice(null)
       setPaymentDate(new Date().toISOString().split("T")[0])
-      // Refresh data
-      setInvoices(getInvoicesByType(invoiceType))
-      setKpis(getInvoiceKPIs(invoiceType))
+      // Trigger refresh
+      setLoading(true)
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error)
+      toast.error("Errore nell'aggiornamento della fattura")
     }
-  }, [selectedInvoice, paymentDate, invoiceType])
+  }, [selectedInvoice, paymentDate, supabase])
 
   // Get countdown badge
   const getCountdownBadge = (invoice: Invoice) => {

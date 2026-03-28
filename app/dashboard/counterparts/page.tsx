@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import {
@@ -9,90 +9,25 @@ import {
   ArrowUpRight,
   Building2,
   MoreHorizontal,
-  Star,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
-  ExternalLink,
   ShieldCheck,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
-// Mock data for counterparts
-const MOCK_COUNTERPARTS = [
-  {
-    id: "1",
-    name: "TechSupply Srl",
-    vat: "IT01234567890",
-    city: "Milano",
-    sector: "Informatica e Tecnologia",
-    reliability_score: 78,
-    reliability_label: "Buono",
-    contracts_count: 3,
-    total_value: 125000,
-    last_contract: "2024-01-15",
-    status: "active",
-    has_alerts: false,
-  },
-  {
-    id: "2",
-    name: "DataCorp SpA",
-    vat: "IT09876543210",
-    city: "Roma",
-    sector: "Informatica e Tecnologia",
-    reliability_score: 92,
-    reliability_label: "Eccellente",
-    contracts_count: 5,
-    total_value: 280000,
-    last_contract: "2024-02-20",
-    status: "active",
-    has_alerts: false,
-  },
-  {
-    id: "3",
-    name: "Innovatech Srl",
-    vat: "IT05555555555",
-    city: "Torino",
-    sector: "Servizi Professionali",
-    reliability_score: 45,
-    reliability_label: "Attenzione",
-    contracts_count: 1,
-    total_value: 35000,
-    last_contract: "2023-11-10",
-    status: "active",
-    has_alerts: true,
-  },
-  {
-    id: "4",
-    name: "GlobalTrade Srl",
-    vat: "IT11223344556",
-    city: "Bologna",
-    sector: "Commercio",
-    reliability_score: 88,
-    reliability_label: "Eccellente",
-    contracts_count: 2,
-    total_value: 95000,
-    last_contract: "2024-01-05",
-    status: "active",
-    has_alerts: false,
-  },
-  {
-    id: "5",
-    name: "BuildCo SpA",
-    vat: "IT09988776655",
-    city: "Napoli",
-    sector: "Edilizia e Costruzioni",
-    reliability_score: 15,
-    reliability_label: "Critico",
-    contracts_count: 1,
-    total_value: 45000,
-    last_contract: "2023-06-15",
-    status: "inactive",
-    has_alerts: true,
-  },
-]
+interface Counterpart {
+  id: string
+  name: string
+  vat_number: string
+  city?: string
+  sector?: string
+  reliability_score: number
+  reliability_label: string
+  status: string
+  total_exposure: number
+  active_contracts: number
+}
 
 const getReliabilityColor = (score: number) => {
   if (score >= 80) return "text-green-400"
@@ -110,16 +45,62 @@ const getReliabilityBgColor = (score: number) => {
   return "bg-red-500/10 border-red-500/20"
 }
 
+const getReliabilityLabel = (score: number) => {
+  if (score >= 80) return "Eccellente"
+  if (score >= 60) return "Buono"
+  if (score >= 40) return "Discreto"
+  if (score >= 20) return "Attenzione"
+  return "Critico"
+}
+
 export default function CounterpartsPage() {
+  const { user } = useUser()
+  const supabase = createClient()
+  const [counterparts, setCounterparts] = useState<Counterpart[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
   const [sectorFilter, setSectorFilter] = useState("all")
 
-  const filteredCounterparts = MOCK_COUNTERPARTS.filter((c) => {
+  useEffect(() => {
+    if (!user) return
+
+    const fetchCounterparts = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('counterparts')
+          .select('*')
+          .eq('company_id', userData.company_id)
+          .order('name')
+
+        if (error) throw error
+        setCounterparts(data || [])
+      } catch (error) {
+        console.error('Error fetching counterparts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCounterparts()
+  }, [user, supabase])
+
+  const filteredCounterparts = counterparts.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.vat.toLowerCase().includes(search.toLowerCase()) ||
-      c.city.toLowerCase().includes(search.toLowerCase())
+      c.vat_number.toLowerCase().includes(search.toLowerCase()) ||
+      (c.city?.toLowerCase().includes(search.toLowerCase()) ?? false)
 
     const matchesStatus = statusFilter === "all" || c.status === statusFilter
     const matchesSector = sectorFilter === "all" || c.sector === sectorFilter
@@ -128,13 +109,21 @@ export default function CounterpartsPage() {
   })
 
   const stats = {
-    total: MOCK_COUNTERPARTS.length,
-    active: MOCK_COUNTERPARTS.filter(c => c.status === "active").length,
-    excellent: MOCK_COUNTERPARTS.filter(c => c.reliability_score >= 80).length,
-    attention: MOCK_COUNTERPARTS.filter(c => c.reliability_score < 60).length,
+    total: counterparts.length,
+    active: counterparts.filter(c => c.status === "active").length,
+    excellent: counterparts.filter(c => c.reliability_score >= 80).length,
+    attention: counterparts.filter(c => c.reliability_score < 60).length,
   }
 
-  const sectors = [...new Set(MOCK_COUNTERPARTS.map(c => c.sector))]
+  const sectors = [...new Set(counterparts.map(c => c.sector).filter(Boolean))]
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value)
+  }
 
   return (
     <div className="space-y-6">
@@ -254,17 +243,21 @@ export default function CounterpartsPage() {
         transition={{ delay: 0.25 }}
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
-        <div className="divide-y divide-border/10">
-          {filteredCounterparts.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <Building2 className="size-12 text-muted-foreground/50 mx-auto mb-4" />
-              <div className="text-foreground font-medium">Nessuna controparte trovata</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Prova a modificare i filtri o aggiungi una nuova controparte
-              </div>
+        {loading ? (
+          <div className="px-6 py-12 text-center">
+            <div className="text-muted-foreground">Caricamento...</div>
+          </div>
+        ) : filteredCounterparts.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <Building2 className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+            <div className="text-foreground font-medium">Nessuna controparte trovata</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Prova a modificare i filtri o aggiungi una nuova controparte
             </div>
-          ) : (
-            filteredCounterparts.map((counterpart) => (
+          </div>
+        ) : (
+          <div className="divide-y divide-border/10">
+            {filteredCounterparts.map((counterpart) => (
               <Link
                 key={counterpart.id}
                 href={`/dashboard/counterparts/${counterpart.id}`}
@@ -280,12 +273,9 @@ export default function CounterpartsPage() {
                     <span className="text-sm font-medium text-foreground truncate">
                       {counterpart.name}
                     </span>
-                    {counterpart.has_alerts && (
-                      <AlertTriangle className="size-3.5 text-amber-400" />
-                    )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {counterpart.vat} · {counterpart.city}
+                    {counterpart.vat_number} · {counterpart.city || 'N/A'}
                   </div>
                 </div>
 
@@ -293,14 +283,14 @@ export default function CounterpartsPage() {
                 <div className="hidden md:flex items-center gap-6">
                   {/* Contracts count */}
                   <div className="text-center">
-                    <div className="text-sm font-medium text-foreground">{counterpart.contracts_count}</div>
+                    <div className="text-sm font-medium text-foreground">{counterpart.active_contracts || 0}</div>
                     <div className="text-xs text-muted-foreground">Contratti</div>
                   </div>
 
                   {/* Total value */}
                   <div className="text-center">
                     <div className="text-sm font-medium text-foreground">
-                      €{counterpart.total_value.toLocaleString()}
+                      {formatCurrency(counterpart.total_exposure || 0)}
                     </div>
                     <div className="text-xs text-muted-foreground">Valore totale</div>
                   </div>
@@ -309,15 +299,15 @@ export default function CounterpartsPage() {
                 {/* Reliability Score */}
                 <div className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-lg border",
-                  getReliabilityBgColor(counterpart.reliability_score)
+                  getReliabilityBgColor(counterpart.reliability_score || 0)
                 )}>
                   <ShieldCheck className="size-4" />
                   <div>
-                    <div className={cn("text-sm font-semibold", getReliabilityColor(counterpart.reliability_score))}>
-                      {counterpart.reliability_score}/100
+                    <div className={cn("text-sm font-semibold", getReliabilityColor(counterpart.reliability_score || 0))}>
+                      {counterpart.reliability_score || 0}/100
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {counterpart.reliability_label}
+                      {getReliabilityLabel(counterpart.reliability_score || 0)}
                     </div>
                   </div>
                 </div>
@@ -333,9 +323,9 @@ export default function CounterpartsPage() {
 
                 <MoreHorizontal className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               </Link>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   )

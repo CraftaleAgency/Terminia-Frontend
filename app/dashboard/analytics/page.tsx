@@ -1,11 +1,10 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
   TrendingUp,
-  TrendingDown,
   BarChart3,
-  PieChartIcon,
   Activity,
   Calendar,
 } from "lucide-react"
@@ -23,72 +22,203 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
-  Tooltip,
 } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
-// Mock analytics data
-const monthlyContractValue = [
-  { month: "Gen", valore: 850000, contratti: 32 },
-  { month: "Feb", valore: 920000, contratti: 35 },
-  { month: "Mar", valore: 980000, contratti: 38 },
-  { month: "Apr", valore: 1050000, contratti: 42 },
-  { month: "Mag", valore: 1150000, contratti: 45 },
-  { month: "Giu", valore: 1200000, contratti: 47 },
-  { month: "Lug", valore: 1280000, contratti: 50 },
-  { month: "Ago", valore: 1350000, contratti: 53 },
-  { month: "Set", valore: 1420000, contratti: 55 },
-  { month: "Ott", valore: 1500000, contratti: 58 },
-  { month: "Nov", valore: 1580000, contratti: 60 },
-  { month: "Dic", valore: 1650000, contratti: 63 },
-]
+// Helper to get month labels
+const getMonthLabels = (months: number = 12) => {
+  const labels = []
+  const now = new Date()
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    labels.push(d.toLocaleDateString('it-IT', { month: 'short' }))
+  }
+  return labels
+}
 
-const contractsByType = [
-  { name: "Fornitura", value: 18, color: "#3dc1c3" },
-  { name: "Servizi", value: 14, color: "#0d6f7f" },
-  { name: "Lavoro", value: 12, color: "#10b981" },
-  { name: "Consulenza", value: 8, color: "#f59e0b" },
-  { name: "Altro", value: 5, color: "#8b5cf6" },
-]
-
-const riskTrend = [
-  { month: "Gen", basso: 20, medio: 8, alto: 4 },
-  { month: "Feb", basso: 22, medio: 9, alto: 4 },
-  { month: "Mar", basso: 24, medio: 10, alto: 4 },
-  { month: "Apr", basso: 27, medio: 10, alto: 5 },
-  { month: "Mag", basso: 28, medio: 11, alto: 6 },
-  { month: "Giu", basso: 30, medio: 11, alto: 6 },
-]
-
-const counterpartDistribution = [
-  { name: "Fornitori", value: 25, color: "#3dc1c3" },
-  { name: "Clienti", value: 18, color: "#0d6f7f" },
-  { name: "Partner", value: 8, color: "#10b981" },
-  { name: "PA", value: 6, color: "#f59e0b" },
-]
-
-const renewalForecast = [
-  { month: "Lug", rinnovi: 3, nuovi: 2 },
-  { month: "Ago", rinnovi: 5, nuovi: 3 },
-  { month: "Set", rinnovi: 2, nuovi: 4 },
-  { month: "Ott", rinnovi: 8, nuovi: 2 },
-  { month: "Nov", rinnovi: 4, nuovi: 3 },
-  { month: "Dic", rinnovi: 6, nuovi: 5 },
-]
-
-const alertsByPriority = [
-  { name: "Critico", value: 3, color: "#ef4444" },
-  { name: "Alto", value: 7, color: "#f59e0b" },
-  { name: "Medio", value: 12, color: "#3dc1c3" },
-  { name: "Basso", value: 5, color: "#10b981" },
-]
+const getFutureMonthLabels = (months: number = 6) => {
+  const labels = []
+  const now = new Date()
+  for (let i = 1; i <= months; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    labels.push(d.toLocaleDateString('it-IT', { month: 'short' }))
+  }
+  return labels
+}
 
 export default function AnalyticsPage() {
+  const { user } = useUser()
+  const supabase = createClient()
+  const [loading, setLoading] = useState(true)
+  const [kpis, setKpis] = useState({
+    totalValue: 0,
+    totalContracts: 0,
+    renewalRate: 0,
+    upcomingExpiries: 0,
+  })
+  const [monthlyContractValue, setMonthlyContractValue] = useState<{month: string, valore: number, contratti: number}[]>([])
+  const [contractsByType, setContractsByType] = useState<{name: string, value: number, color: string}[]>([])
+  const [riskTrend, setRiskTrend] = useState<{month: string, basso: number, medio: number, alto: number}[]>([])
+  const [counterpartDistribution, setCounterpartDistribution] = useState<{name: string, value: number, color: string}[]>([])
+  const [renewalForecast, setRenewalForecast] = useState<{month: string, rinnovi: number, nuovi: number}[]>([])
+  const [alertsByPriority, setAlertsByPriority] = useState<{name: string, value: number, color: string}[]>([])
+
+  useEffect(() => {
+    if (!user) return
+
+    const fetchAnalyticsData = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const companyId = userData.company_id
+
+        // Fetch contracts for analytics
+        const { data: contracts } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('company_id', companyId)
+
+        // Fetch counterparts
+        const { data: counterparts } = await supabase
+          .from('counterparts')
+          .select('*')
+          .eq('company_id', companyId)
+
+        // Fetch alerts
+        const { data: alerts } = await supabase
+          .from('alerts')
+          .select('*')
+          .eq('company_id', companyId)
+
+        // Calculate KPIs
+        const activeContracts = contracts?.filter(c => c.status === 'active') || []
+        const totalValue = activeContracts.reduce((sum, c) => sum + (c.value || 0), 0)
+        const totalContracts = activeContracts.length
+
+        const thirtyDaysFromNow = new Date()
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+        const upcomingExpiries = activeContracts.filter(c =>
+          new Date(c.end_date) <= thirtyDaysFromNow
+        ).length
+
+        setKpis({
+          totalValue,
+          totalContracts,
+          renewalRate: 0, // Would need historical data
+          upcomingExpiries,
+        })
+
+        // Monthly contract value (empty for now - would need historical data)
+        const monthLabels = getMonthLabels(12)
+        setMonthlyContractValue(monthLabels.map(month => ({
+          month,
+          valore: 0,
+          contratti: 0,
+        })))
+
+        // Contracts by type
+        const typeCount: Record<string, number> = {}
+        activeContracts.forEach(c => {
+          const type = c.contract_type || 'other'
+          typeCount[type] = (typeCount[type] || 0) + 1
+        })
+        const typeColors: Record<string, string> = {
+          'service_supply': '#3dc1c3',
+          'goods_supply': '#0d6f7f',
+          'framework': '#10b981',
+          'nda': '#f59e0b',
+          'other': '#8b5cf6',
+        }
+        setContractsByType(Object.entries(typeCount).map(([name, value]) => ({
+          name: name.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()),
+          value,
+          color: typeColors[name] || typeColors['other'],
+        })))
+
+        // Risk distribution (empty for now - would need risk_score data)
+        const riskLabels = getMonthLabels(6)
+        setRiskTrend(riskLabels.map(month => ({
+          month,
+          basso: 0,
+          medio: 0,
+          alto: 0,
+        })))
+
+        // Counterpart distribution
+        const counterpartTypes: Record<string, number> = {}
+        counterparts?.forEach(c => {
+          const type = c.type || 'other'
+          counterpartTypes[type] = (counterpartTypes[type] || 0) + 1
+        })
+        const counterpartColors: Record<string, string> = {
+          'supplier': '#3dc1c3',
+          'client': '#0d6f7f',
+          'partner': '#10b981',
+          'other': '#f59e0b',
+        }
+        setCounterpartDistribution(Object.entries(counterpartTypes).map(([name, value]) => ({
+          name: name.replace(/^\w/, c => c.toUpperCase()),
+          value,
+          color: counterpartColors[name] || counterpartColors['other'],
+        })))
+
+        // Renewal forecast (empty for now)
+        const futureMonths = getFutureMonthLabels(6)
+        setRenewalForecast(futureMonths.map(month => ({
+          month,
+          rinnovi: 0,
+          nuovi: 0,
+        })))
+
+        // Alerts by priority
+        const priorityCount: Record<string, number> = {}
+        alerts?.forEach(a => {
+          const priority = a.priority || 'low'
+          priorityCount[priority] = (priorityCount[priority] || 0) + 1
+        })
+        const priorityColors: Record<string, string> = {
+          'critical': '#ef4444',
+          'high': '#f59e0b',
+          'medium': '#3dc1c3',
+          'low': '#10b981',
+        }
+        const priorityLabels: Record<string, string> = {
+          'critical': 'Critico',
+          'high': 'Alto',
+          'medium': 'Medio',
+          'low': 'Basso',
+        }
+        setAlertsByPriority(Object.entries(priorityCount).map(([key, value]) => ({
+          name: priorityLabels[key] || key,
+          value,
+          color: priorityColors[key] || priorityColors['low'],
+        })))
+
+      } catch (error) {
+        console.error('Error fetching analytics data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAnalyticsData()
+  }, [user, supabase])
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("it-IT", {
       style: "currency",
@@ -101,30 +231,30 @@ export default function AnalyticsPage() {
   const kpiCards = [
     {
       label: "Valore Totale Portfolio",
-      value: formatCurrency(1650000),
-      change: "+12.5%",
-      changeType: "positive",
+      value: formatCurrency(kpis.totalValue),
+      change: "-",
+      changeType: "neutral",
       icon: TrendingUp,
     },
     {
       label: "Contratti Gestiti",
-      value: "63",
-      change: "+15 YoY",
-      changeType: "positive",
+      value: kpis.totalContracts.toString(),
+      change: "-",
+      changeType: "neutral",
       icon: BarChart3,
     },
     {
       label: "Tasso Rinnovo",
-      value: "87%",
-      change: "+3%",
-      changeType: "positive",
+      value: "-",
+      change: "-",
+      changeType: "neutral",
       icon: Activity,
     },
     {
       label: "Scadenze Prossime",
-      value: "8",
+      value: kpis.upcomingExpiries.toString(),
       change: "entro 30gg",
-      changeType: "warning",
+      changeType: kpis.upcomingExpiries > 0 ? "warning" : "neutral",
       icon: Calendar,
     },
   ]
@@ -156,7 +286,9 @@ export default function AnalyticsPage() {
                   <Icon className="size-5" />
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full ${
-                  kpi.changeType === "positive" ? "bg-emerald-400/10 text-emerald-400" : "bg-amber-400/10 text-amber-400"
+                  kpi.changeType === "positive" ? "bg-emerald-400/10 text-emerald-400" :
+                  kpi.changeType === "warning" ? "bg-amber-400/10 text-amber-400" :
+                  "bg-muted/30 text-muted-foreground"
                 }`}>
                   {kpi.change}
                 </span>
@@ -227,40 +359,48 @@ export default function AnalyticsPage() {
             <h3 className="font-semibold text-foreground">Contratti per Tipologia</h3>
             <p className="text-sm text-muted-foreground">Distribuzione attuale</p>
           </div>
-          <ChartContainer
-            config={{
-              value: { label: "Contratti" },
-            }}
-            className="h-[200px] w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={contractsByType}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {contractsByType.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-          <div className="flex flex-wrap justify-center gap-3 mt-3">
-            {contractsByType.map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-xs text-muted-foreground">{item.name}</span>
+          {contractsByType.length > 0 ? (
+            <>
+              <ChartContainer
+                config={{
+                  value: { label: "Contratti" },
+                }}
+                className="h-[200px] w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={contractsByType}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {contractsByType.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+              <div className="flex flex-wrap justify-center gap-3 mt-3">
+                {contractsByType.map((item) => (
+                  <div key={item.name} className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-xs text-muted-foreground">{item.name}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+              Nessun dato disponibile
+            </div>
+          )}
         </motion.div>
       </div>
 
@@ -368,40 +508,48 @@ export default function AnalyticsPage() {
             <h3 className="font-semibold text-foreground">Controparti</h3>
             <p className="text-sm text-muted-foreground">Per categoria</p>
           </div>
-          <ChartContainer
-            config={{
-              value: { label: "Controparti" },
-            }}
-            className="h-[180px] w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={counterpartDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
-                  paddingAngle={3}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {counterpartDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-          <div className="flex flex-wrap justify-center gap-3 mt-2">
-            {counterpartDistribution.map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-xs text-muted-foreground">{item.name}: {item.value}</span>
+          {counterpartDistribution.length > 0 ? (
+            <>
+              <ChartContainer
+                config={{
+                  value: { label: "Controparti" },
+                }}
+                className="h-[180px] w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={counterpartDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {counterpartDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+              <div className="flex flex-wrap justify-center gap-3 mt-2">
+                {counterpartDistribution.map((item) => (
+                  <div key={item.name} className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-xs text-muted-foreground">{item.name}: {item.value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+              Nessun dato disponibile
+            </div>
+          )}
         </motion.div>
 
         {/* Alerts by Priority */}
@@ -415,25 +563,31 @@ export default function AnalyticsPage() {
             <h3 className="font-semibold text-foreground">Alert per Priorita</h3>
             <p className="text-sm text-muted-foreground">Distribuzione attuale</p>
           </div>
-          <ChartContainer
-            config={{
-              value: { label: "Alert" },
-            }}
-            className="h-[180px] w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={alertsByPriority} layout="vertical" margin={{ top: 5, right: 10, left: 50, bottom: 5 }}>
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {alertsByPriority.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+          {alertsByPriority.length > 0 ? (
+            <ChartContainer
+              config={{
+                value: { label: "Alert" },
+              }}
+              className="h-[180px] w-full"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={alertsByPriority} layout="vertical" margin={{ top: 5, right: 10, left: 50, bottom: 5 }}>
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {alertsByPriority.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          ) : (
+            <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+              Nessun alert
+            </div>
+          )}
         </motion.div>
 
         {/* Contract Growth */}

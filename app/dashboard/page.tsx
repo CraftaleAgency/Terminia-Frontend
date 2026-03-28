@@ -32,44 +32,70 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import {
-  getContracts,
-  getAlerts,
-  getDashboardKPIs,
-  formatCurrency,
-  formatDate,
-  type Contract,
-  type Alert,
-} from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
-// Chart data
-const contractTrendData = [
-  { month: "Gen", contratti: 32, valore: 850000 },
-  { month: "Feb", contratti: 35, valore: 920000 },
-  { month: "Mar", contratti: 38, valore: 980000 },
-  { month: "Apr", contratti: 42, valore: 1050000 },
-  { month: "Mag", contratti: 45, valore: 1150000 },
-  { month: "Giu", contratti: 47, valore: 1200000 },
-]
+// Helper functions
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
 
-const riskDistribution = [
-  { name: "Basso", value: 28, color: "#10b981" },
-  { name: "Medio", value: 12, color: "#f59e0b" },
-  { name: "Alto", value: 7, color: "#ef4444" },
-]
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
 
-const expiryByMonth = [
-  { month: "Lug", count: 3 },
-  { month: "Ago", count: 5 },
-  { month: "Set", count: 2 },
-  { month: "Ott", count: 8 },
-  { month: "Nov", count: 4 },
-  { month: "Dic", count: 6 },
-]
+// Chart data will be fetched from database
+const getMonthLabels = () => {
+  const months = []
+  const now = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months.push(d.toLocaleDateString('it-IT', { month: 'short' }))
+  }
+  return months
+}
+
+const getFutureMonthLabels = () => {
+  const months = []
+  const now = new Date()
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+    months.push(d.toLocaleDateString('it-IT', { month: 'short' }))
+  }
+  return months
+}
+
+interface Contract {
+  id: string
+  title: string
+  status: string
+  value: number
+  end_date: string
+  counterparts?: { name: string }
+}
+
+interface Alert {
+  id: string
+  title: string
+  priority: string
+  trigger_date: string
+  status: string
+}
 
 export default function DashboardPage() {
+  const { user } = useUser()
+  const supabase = createClient()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState({
     activeContracts: 0,
     expiringIn30Days: 0,
@@ -79,18 +105,110 @@ export default function DashboardPage() {
     toCollect: 0,
     toPay: 0,
   })
+  const [contractTrendData, setContractTrendData] = useState<{month: string, contratti: number, valore: number}[]>(() => {
+    return getMonthLabels().map(month => ({ month, contratti: 0, valore: 0 }))
+  })
+  const [riskDistribution] = useState<{name: string, value: number, color: string}[]>([
+    { name: "Basso", value: 0, color: "#10b981" },
+    { name: "Medio", value: 0, color: "#f59e0b" },
+    { name: "Alto", value: 0, color: "#ef4444" },
+  ])
+  const [expiryByMonth, setExpiryByMonth] = useState<{month: string, count: number}[]>(() => {
+    return getFutureMonthLabels().map(month => ({ month, count: 0 }))
+  })
 
   useEffect(() => {
-    setContracts(getContracts())
-    setAlerts(getAlerts())
-    setKpis(getDashboardKPIs())
-  }, [])
+    if (!user) return
+
+    const fetchDashboardData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        // Fetch contracts
+        const { data: contractsData } = await supabase
+          .from('contracts')
+          .select('*, counterparts(name)')
+          .eq('company_id', userData.company_id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        // Fetch alerts
+        const { data: alertsData } = await supabase
+          .from('alerts')
+          .select('*')
+          .eq('company_id', userData.company_id)
+          .in('status', ['pending', 'escalated'])
+          .order('priority', { ascending: true })
+          .limit(5)
+
+        // Calculate KPIs
+        const { count: activeCount } = await supabase
+          .from('contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', userData.company_id)
+          .eq('status', 'active')
+
+        const thirtyDaysFromNow = new Date()
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+
+        const { count: expiringCount } = await supabase
+          .from('contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', userData.company_id)
+          .eq('status', 'active')
+          .lte('end_date', thirtyDaysFromNow.toISOString())
+
+        const { data: valueData } = await supabase
+          .from('contracts')
+          .select('value')
+          .eq('company_id', userData.company_id)
+          .eq('status', 'active')
+
+        const totalValue = valueData?.reduce((sum, c) => sum + (c.value || 0), 0) || 0
+
+        const { count: alertsCount } = await supabase
+          .from('alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', userData.company_id)
+          .in('status', ['pending', 'escalated'])
+
+        setContracts(contractsData || [])
+        setAlerts(alertsData || [])
+        setKpis({
+          activeContracts: activeCount || 0,
+          expiringIn30Days: expiringCount || 0,
+          totalPortfolioValue: totalValue,
+          pendingAlerts: alertsCount || 0,
+          highMatchBandi: 0, // TODO: implement
+          toCollect: 0, // TODO: implement
+          toPay: 0, // TODO: implement
+        })
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [user, supabase])
 
   const kpiCards = [
     {
       label: "Contratti Attivi",
       value: kpis.activeContracts.toString(),
-      delta: "+3 questo mese",
+      delta: "",
       deltaType: "positive" as const,
       icon: FileText,
       color: "text-primary",
@@ -98,7 +216,7 @@ export default function DashboardPage() {
     {
       label: "In Scadenza 30gg",
       value: kpis.expiringIn30Days.toString(),
-      delta: "Richiede attenzione",
+      delta: kpis.expiringIn30Days > 0 ? "Richiede attenzione" : "",
       deltaType: "warning" as const,
       icon: Clock,
       color: "text-amber-400",
@@ -106,7 +224,7 @@ export default function DashboardPage() {
     {
       label: "Valore Portfolio",
       value: formatCurrency(kpis.totalPortfolioValue),
-      delta: "+12% vs anno precedente",
+      delta: "",
       deltaType: "positive" as const,
       icon: Wallet,
       color: "text-emerald-400",
@@ -114,7 +232,7 @@ export default function DashboardPage() {
     {
       label: "Alert Aperti",
       value: kpis.pendingAlerts.toString(),
-      delta: "Da gestire",
+      delta: kpis.pendingAlerts > 0 ? "Da gestire" : "",
       deltaType: "negative" as const,
       icon: AlertTriangle,
       color: "text-red-400",
@@ -122,7 +240,7 @@ export default function DashboardPage() {
     {
       label: "Bandi Match Alto",
       value: kpis.highMatchBandi.toString(),
-      delta: "Opportunita",
+      delta: "",
       deltaType: "positive" as const,
       icon: Radar,
       color: "text-primary",

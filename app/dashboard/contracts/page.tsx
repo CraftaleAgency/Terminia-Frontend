@@ -13,38 +13,148 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
-import {
-  getContracts,
-  formatCurrency,
-  formatDate,
-  daysUntil,
-  getStatusLabel,
-  getStatusColor,
-  getRiskColor,
-  type Contract,
-  type ContractStatus,
-} from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
+
+type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
+
+interface Contract {
+  id: string
+  title: string
+  contract_type: string
+  counterpart_id?: string
+  counterpart_name?: string
+  employee_id?: string
+  employee_name?: string
+  status: ContractStatus
+  value: number
+  value_type: "total" | "annual" | "monthly"
+  start_date: string
+  end_date: string
+  auto_renewal: boolean
+  renewal_notice_days?: number
+  risk_score: number
+  reference_number?: string
+}
+
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+const formatDate = (dateStr: string): string => {
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(dateStr))
+}
+
+const daysUntil = (dateStr: string): number => {
+  const target = new Date(dateStr)
+  const today = new Date()
+  const diff = target.getTime() - today.getTime()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+const getStatusLabel = (status: ContractStatus): string => {
+  const labels: Record<ContractStatus, string> = {
+    draft: "Bozza",
+    negotiating: "In Negoziazione",
+    active: "Attivo",
+    expiring: "In Scadenza",
+    renewed: "Rinnovato",
+    terminated: "Terminato",
+  }
+  return labels[status] || status
+}
+
+const getStatusColor = (status: ContractStatus): string => {
+  switch (status) {
+    case "active": return "text-primary"
+    case "expiring": return "text-amber-400"
+    case "draft": return "text-muted-foreground"
+    case "negotiating": return "text-blue-400"
+    case "terminated": return "text-destructive"
+    case "renewed": return "text-emerald-400"
+    default: return "text-muted-foreground"
+  }
+}
+
+const getRiskColor = (score: number): string => {
+  if (score < 30) return "text-emerald-400"
+  if (score < 60) return "text-amber-400"
+  return "text-red-400"
+}
 
 export default function ContractsPage() {
+  const { user } = useUser()
+  const supabase = createClient()
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "all">("all")
   const [typeFilter, setTypeFilter] = useState<"all" | "commercial" | "hr">("all")
 
   useEffect(() => {
-    setContracts(getContracts())
-  }, [])
+    if (!user) return
+
+    const fetchContracts = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('contracts')
+          .select(`
+            *,
+            counterparts(name),
+            employees(full_name)
+          `)
+          .eq('company_id', userData.company_id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        const formattedContracts = data?.map(c => ({
+          ...c,
+          counterpart_name: c.counterparts?.name,
+          employee_name: c.employees?.full_name,
+        })) || []
+
+        setContracts(formattedContracts)
+      } catch (error) {
+        console.error('Error fetching contracts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchContracts()
+  }, [user, supabase])
 
   const filteredContracts = contracts.filter((c) => {
-    const matchesSearch = 
+    const matchesSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.counterpart_name?.toLowerCase().includes(search.toLowerCase()) ||
       c.employee_name?.toLowerCase().includes(search.toLowerCase())
-    
+
     const matchesStatus = statusFilter === "all" || c.status === statusFilter
-    
+
     const isHR = ["permanent", "fixed_term", "cococo"].includes(c.contract_type)
-    const matchesType = 
+    const matchesType =
       typeFilter === "all" ||
       (typeFilter === "hr" && isHR) ||
       (typeFilter === "commercial" && !isHR)
@@ -140,7 +250,7 @@ export default function ContractsPage() {
               className="w-full pl-10 pr-4 py-2.5 bg-muted/30 border border-border/20 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          
+
           {/* Status filter */}
           <div className="flex items-center gap-2">
             <Filter className="size-4 text-muted-foreground" />
@@ -163,8 +273,8 @@ export default function ContractsPage() {
             <button
               onClick={() => setTypeFilter("all")}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                typeFilter === "all" 
-                  ? "bg-primary text-primary-foreground" 
+                typeFilter === "all"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted/30 text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -173,8 +283,8 @@ export default function ContractsPage() {
             <button
               onClick={() => setTypeFilter("commercial")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                typeFilter === "commercial" 
-                  ? "bg-primary text-primary-foreground" 
+                typeFilter === "commercial"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted/30 text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -184,8 +294,8 @@ export default function ContractsPage() {
             <button
               onClick={() => setTypeFilter("hr")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                typeFilter === "hr" 
-                  ? "bg-primary text-primary-foreground" 
+                typeFilter === "hr"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted/30 text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -203,20 +313,24 @@ export default function ContractsPage() {
         transition={{ delay: 0.25 }}
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
-        <div className="divide-y divide-border/10">
-          {filteredContracts.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <FileText className="size-12 text-muted-foreground/50 mx-auto mb-4" />
-              <div className="text-foreground font-medium">Nessun contratto trovato</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Prova a modificare i filtri o crea un nuovo contratto
-              </div>
+        {loading ? (
+          <div className="px-6 py-12 text-center">
+            <div className="text-muted-foreground">Caricamento...</div>
+          </div>
+        ) : filteredContracts.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <FileText className="size-12 text-muted-foreground/50 mx-auto mb-4" />
+            <div className="text-foreground font-medium">Nessun contratto trovato</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Prova a modificare i filtri o crea un nuovo contratto
             </div>
-          ) : (
-            filteredContracts.map((contract) => {
+          </div>
+        ) : (
+          <div className="divide-y divide-border/10">
+            {filteredContracts.map((contract) => {
               const isHR = ["permanent", "fixed_term", "cococo"].includes(contract.contract_type)
               const days = daysUntil(contract.end_date)
-              
+
               return (
                 <Link
                   key={contract.id}
@@ -228,7 +342,7 @@ export default function ContractsPage() {
                   }`}>
                     {isHR ? <Users className="size-5" /> : <Building2 className="size-5" />}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground truncate">
@@ -241,7 +355,7 @@ export default function ContractsPage() {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {contract.counterpart_name || contract.employee_name} · {contract.reference_number}
+                      {contract.counterpart_name || contract.employee_name} · {contract.reference_number || 'N/A'}
                     </div>
                   </div>
 
@@ -289,9 +403,9 @@ export default function ContractsPage() {
                   </div>
                 </Link>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </motion.div>
     </div>
   )
