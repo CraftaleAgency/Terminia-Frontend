@@ -27,6 +27,10 @@ import {
   MapPin,
   Tag,
   Link2,
+  Bot,
+  Loader2,
+  Copy,
+  Check,
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -38,6 +42,7 @@ import {
   type Bando,
   type ParticipationStatus,
 } from "@/lib/mock-data"
+import { sendChatMessageAction } from "@/lib/actions/chat"
 
 type BandoTabId = "dettaglio" | "match" | "gap" | "checklist" | "lotti" | "competitor"
 
@@ -105,6 +110,36 @@ export default function BandoDetailPage() {
   const [participationStatus, setParticipationStatus] = useState<ParticipationStatus>("new")
   const [internalNotes, setInternalNotes] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null)
+  const [aiExplanationLoading, setAiExplanationLoading] = useState(false)
+  const [aiExplanationError, setAiExplanationError] = useState<string | null>(null)
+  const [aiCopied, setAiCopied] = useState(false)
+
+  const handleExplainMatch = async () => {
+    if (!bando || aiExplanationLoading) return
+    setAiExplanationLoading(true)
+    setAiExplanationError(null)
+    setAiExplanation(null)
+
+    const cpvList = bando.cpv_codes?.join(", ") ?? "N/A"
+    const prompt = `Spiega perché questo bando ha un match score del ${bando.match_score}% per la nostra azienda. Il bando è: "${bando.title}", ente appaltante: ${bando.authority_name}, CPV: ${cpvList}, valore base: ${formatCurrency(bando.base_value)}, scadenza: ${formatDate(bando.deadline)}. Punteggi: settore ${bando.score_sector}/40, dimensione ${bando.score_size}/30, geografia ${bando.score_geo}/25, requisiti ${bando.score_requirements}/20, fattibilità ${bando.score_feasibility}/20. Spiega in modo chiaro e sintetico quali sono i punti di forza e le aree di miglioramento.`
+
+    const result = await sendChatMessageAction([{ role: "user", content: prompt }])
+
+    if (result.success && result.response) {
+      setAiExplanation(result.response)
+    } else {
+      setAiExplanationError(result.error ?? "Errore nella generazione della spiegazione")
+    }
+    setAiExplanationLoading(false)
+  }
+
+  const handleCopyExplanation = async () => {
+    if (!aiExplanation) return
+    await navigator.clipboard.writeText(aiExplanation)
+    setAiCopied(true)
+    setTimeout(() => setAiCopied(false), 2000)
+  }
 
   useEffect(() => {
     const bandoData = getBando(params.id as string)
@@ -293,6 +328,70 @@ export default function BandoDetailPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* AI Match Explanation */}
+            <div className="mt-4 border-t border-border/20 pt-4">
+              {!aiExplanation && !aiExplanationLoading && (
+                <button
+                  onClick={handleExplainMatch}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium"
+                >
+                  <Bot className="size-4" />
+                  🤖 Spiega Match
+                </button>
+              )}
+
+              {aiExplanationLoading && (
+                <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <Loader2 className="size-4 text-primary animate-spin" />
+                  <span className="text-sm text-primary">Analisi in corso con NemoClaw AI...</span>
+                </div>
+              )}
+
+              {aiExplanationError && (
+                <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <AlertCircle className="size-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-400">{aiExplanationError}</p>
+                    <button
+                      onClick={handleExplainMatch}
+                      className="mt-2 text-xs text-red-400 underline hover:no-underline"
+                    >
+                      Riprova
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {aiExplanation && (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-primary">
+                      <Bot className="size-4" />
+                      <span className="text-sm font-medium">Spiegazione AI</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyExplanation}
+                        className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+                      >
+                        {aiCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+                        {aiCopied ? "Copiato" : "Copia"}
+                      </button>
+                      <button
+                        onClick={handleExplainMatch}
+                        className="text-xs text-primary/70 hover:text-primary transition-colors"
+                      >
+                        Rigenera
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                    {aiExplanation}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
