@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useRef } from "react"
 import Link from "next/link"
-import { Mail, Lock, Eye, EyeOff, Loader2, User, Building2, MapPin, Check, X, UserCircle2, Briefcase, Home, Smartphone, Shuffle } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, Loader2, User, Building2, MapPin, Check, X, UserCircle2, Briefcase, Home, Smartphone, Shuffle, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { signup } from "../actions"
 import { motion } from "framer-motion"
+import { analyzeContractAction } from '@/lib/actions/contracts'
 
 const sectors = [
   "Informatica e Tecnologia",
@@ -58,6 +59,11 @@ export default function RegisterPage() {
     personalContractProfile: "",
   })
 
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzeStatus, setAnalyzeStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const passwordRequirements = [
     { label: "Almeno 8 caratteri", met: formData.password.length >= 8 },
     { label: "Una lettera maiuscola", met: /[A-Z]/.test(formData.password) },
@@ -82,6 +88,97 @@ export default function RegisterPage() {
       : formData.fiscalCode.length >= 16 &&
         formData.personalContractProfile.length > 0 &&
         formData.city.length >= 2
+
+  const handleDocumentUpload = useCallback(async (file: File) => {
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      setError("Il file non deve superare i 10MB")
+      return
+    }
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ]
+    if (!allowedTypes.includes(file.type)) {
+      setError("Formato non supportato. Carica un PDF o DOCX.")
+      return
+    }
+
+    setIsAnalyzing(true)
+    setAnalyzeStatus('idle')
+    setError("")
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1])
+        }
+        reader.onerror = () => reject(new Error('Errore nella lettura del file'))
+        reader.readAsDataURL(file)
+      })
+
+      const result = await analyzeContractAction({
+        documentBase64: base64,
+        contentType: file.type,
+      })
+
+      if (result.success && result.data) {
+        const filled = new Set<string>()
+        const updates: Record<string, string> = {}
+
+        const firstParty = result.data.extraction.parties[0]
+        if (firstParty?.name) {
+          updates.companyName = firstParty.name
+          filled.add('companyName')
+        }
+        if (firstParty?.vat_number) {
+          updates.vatNumber = firstParty.vat_number.replace(/\D/g, '').slice(0, 11)
+          filled.add('vatNumber')
+        }
+
+        const contractType = (result.data.classification.contract_type ?? '').toLowerCase()
+        const sectorKeywords: [string, string][] = [
+          ['informatica', 'Informatica e Tecnologia'],
+          ['tecnologia', 'Informatica e Tecnologia'],
+          ['software', 'Informatica e Tecnologia'],
+          ['manifattura', 'Manifatturiero'],
+          ['produzione', 'Manifatturiero'],
+          ['consulenza', 'Servizi Professionali'],
+          ['professionale', 'Servizi Professionali'],
+          ['commercio', 'Commercio'],
+          ['vendita', 'Commercio'],
+          ['fornitura', 'Commercio'],
+          ['edilizia', 'Edilizia e Costruzioni'],
+          ['costruzione', 'Edilizia e Costruzioni'],
+          ['appalto', 'Edilizia e Costruzioni'],
+          ['trasporto', 'Trasporti e Logistica'],
+          ['logistica', 'Trasporti e Logistica'],
+          ['alimentare', 'Alimentare'],
+          ['sanitario', 'Sanitario'],
+          ['medico', 'Sanitario'],
+        ]
+        for (const [kw, sector] of sectorKeywords) {
+          if (contractType.includes(kw)) {
+            updates.sector = sector
+            filled.add('sector')
+            break
+          }
+        }
+
+        setFormData(prev => ({ ...prev, ...updates }))
+        setAutoFilledFields(filled)
+        setAnalyzeStatus(filled.size > 0 ? 'success' : 'error')
+      } else {
+        setAnalyzeStatus('error')
+      }
+    } catch {
+      setAnalyzeStatus('error')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -322,9 +419,87 @@ export default function RegisterPage() {
 
             {formData.accountType === "company" ? (
               <>
+                {/* Document upload area */}
+                <div
+                  className={cn(
+                    "rounded-xl border-2 border-dashed p-6 text-center transition-colors",
+                    isAnalyzing
+                      ? "border-primary/50 bg-primary/5"
+                      : analyzeStatus === 'success'
+                      ? "border-green-500/50 bg-green-500/5"
+                      : analyzeStatus === 'error'
+                      ? "border-red-500/30 bg-red-500/5"
+                      : "border-border/50 bg-secondary/20 hover:border-primary/50 cursor-pointer"
+                  )}
+                  onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const file = e.dataTransfer.files[0]
+                    if (file && !isAnalyzing) handleDocumentUpload(file)
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleDocumentUpload(file)
+                      e.target.value = ''
+                    }}
+                  />
+
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="size-8 text-primary mx-auto mb-3 animate-spin" />
+                      <p className="text-sm font-medium text-foreground">Analisi in corso...</p>
+                      <p className="text-xs text-muted-foreground mt-1">Estrazione dati dal documento</p>
+                    </>
+                  ) : analyzeStatus === 'success' ? (
+                    <>
+                      <Check className="size-8 text-green-500 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-green-400">✅ Dati estratti automaticamente</p>
+                      <p className="text-xs text-muted-foreground mt-1">Puoi modificare i campi compilati</p>
+                    </>
+                  ) : analyzeStatus === 'error' ? (
+                    <>
+                      <FileText className="size-8 text-red-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-red-400">Non è stato possibile estrarre i dati</p>
+                      <p className="text-xs text-muted-foreground mt-1">Compila manualmente i campi sottostanti</p>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="size-8 text-primary mx-auto mb-3" />
+                      <p className="text-sm font-medium text-foreground">
+                        📄 Carica Visura Camerale o Atto Costitutivo
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        per compilare automaticamente
+                      </p>
+                      <p className="text-xs text-primary/70 mt-3">
+                        Trascina qui il PDF o clicca per selezionare
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        PDF, DOCX — max 10MB
+                      </p>
+                    </>
+                  )}
+                </div>
+                {!isAnalyzing && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Oppure compila manualmente ↓
+                  </p>
+                )}
+
                 <div className="space-y-2">
                   <label htmlFor="companyName" className="text-sm font-medium text-foreground">
                     Ragione sociale
+                    {autoFilledFields.has('companyName') && (
+                      <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                    )}
                   </label>
                   <div className="relative">
                     <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -343,6 +518,9 @@ export default function RegisterPage() {
                 <div className="space-y-2">
                   <label htmlFor="vatNumber" className="text-sm font-medium text-foreground">
                     Partita IVA
+                    {autoFilledFields.has('vatNumber') && (
+                      <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                    )}
                   </label>
                   <div className="relative">
                     <Input
@@ -370,7 +548,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Settore</label>
+                  <label className="text-sm font-medium text-foreground">
+                    Settore
+                    {autoFilledFields.has('sector') && (
+                      <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                    )}
+                  </label>
                   <Select
                     value={formData.sector}
                     onValueChange={(value) => setFormData({ ...formData, sector: value })}
@@ -463,6 +646,9 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <label htmlFor="city" className="text-sm font-medium text-foreground">
                 Città di residenza
+                {autoFilledFields.has('city') && (
+                  <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                )}
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
