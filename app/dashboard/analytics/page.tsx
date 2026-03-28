@@ -113,7 +113,7 @@ export default function AnalyticsPage() {
         const thirtyDaysFromNow = new Date()
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
         const upcomingExpiries = activeContracts.filter(c =>
-          new Date(c.end_date) <= thirtyDaysFromNow
+          c.end_date && new Date(c.end_date) <= thirtyDaysFromNow
         ).length
 
         setKpis({

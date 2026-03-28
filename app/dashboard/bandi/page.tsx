@@ -20,10 +20,13 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatCurrency, type Bando } from "@/lib/mock-data"
+import { formatCurrency } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { Database } from "@/types/database"
+
+type Bando = Database['public']['Tables']['bandi']['Row']
 
 // Status configuration
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -157,9 +160,9 @@ export default function BandiPage() {
     const matchesSearch =
       bando.title.toLowerCase().includes(search.toLowerCase()) ||
       bando.authority_name.toLowerCase().includes(search.toLowerCase())
-    const matchesMatch = bando.match_score >= matchFilter
+    const matchesMatch = (bando.match_score ?? 0) >= matchFilter
     const matchesSource = sourceFilter.length === 0 || sourceFilter.includes(bando.source)
-    const matchesCategory = categoryFilter === "all" || bando.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || bando.contract_category === categoryFilter
     const matchesStatus = statusFilter === "all" || bando.participation_status === statusFilter
 
     return matchesSearch && matchesMatch && matchesSource && matchesCategory && matchesStatus
@@ -169,9 +172,9 @@ export default function BandiPage() {
     foundToday: bandi.filter(b => {
       return true // Mock: assume some found today
     }).length,
-    highMatch: bandi.filter(b => b.match_score >= 80).length,
+    highMatch: bandi.filter(b => (b.match_score ?? 0) >= 80).length,
     expiringSoon: bandi.filter(b => daysUntilDeadline(b.deadline) <= 7 && daysUntilDeadline(b.deadline) > 0).length,
-    participating: bandi.filter(b => ["participating", "submitted"].includes(b.participation_status)).length,
+    participating: bandi.filter(b => b.participation_status != null && ["participating", "submitted"].includes(b.participation_status)).length,
   }
 
   const handleRefresh = () => {
@@ -489,25 +492,25 @@ export default function BandiPage() {
                       <div className="flex items-center gap-1">
                         <Euro className="size-3.5" />
                         <span className="font-medium text-foreground">
-                          {formatCurrency(bando.base_value)}
+                          {formatCurrency(bando.base_value ?? 0)}
                         </span>
                       </div>
                       <span>-</span>
-                      <span>{bando.category || "Servizi"}</span>
+                      <span>{bando.contract_category || "Servizi"}</span>
                     </div>
 
                     {/* Match Score Box */}
                     <div className="bg-muted/20 rounded-xl p-3 mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-muted-foreground">Match Score</span>
-                        <span className={cn("text-lg font-bold", getMatchColor(bando.match_score))}>
-                          {bando.match_score}%
+                        <span className={cn("text-lg font-bold", getMatchColor(bando.match_score ?? 0))}>
+                          {bando.match_score ?? 0}%
                         </span>
                       </div>
                       <div className="w-full h-2 bg-muted/30 rounded-full overflow-hidden">
                         <div
-                          className={cn("h-full rounded-full transition-all", getMatchBgColor(bando.match_score))}
-                          style={{ width: `${bando.match_score}%` }}
+                          className={cn("h-full rounded-full transition-all", getMatchBgColor(bando.match_score ?? 0))}
+                          style={{ width: `${bando.match_score ?? 0}%` }}
                         />
                       </div>
                       {/* Score Breakdown */}
@@ -578,7 +581,7 @@ export default function BandiPage() {
                 <tbody className="divide-y divide-border/10">
                   {filteredBandi.map((bando) => {
                     const days = daysUntilDeadline(bando.deadline)
-                    const statusConfig = STATUS_CONFIG[bando.participation_status] || STATUS_CONFIG.new
+                    const statusConfig = STATUS_CONFIG[bando.participation_status ?? 'new'] || STATUS_CONFIG.new
                     return (
                       <tr key={bando.id} className="hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-3">
@@ -609,11 +612,11 @@ export default function BandiPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                          {formatCurrency(bando.base_value)}
+                          {formatCurrency(bando.base_value ?? 0)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={cn("text-sm font-medium", getMatchColor(bando.match_score))}>
-                            {bando.match_score}%
+                          <span className={cn("text-sm font-medium", getMatchColor(bando.match_score ?? 0))}>
+                            {bando.match_score ?? 0}%
                           </span>
                         </td>
                         <td className="px-4 py-3">

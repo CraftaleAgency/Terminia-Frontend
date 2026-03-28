@@ -30,11 +30,13 @@ import {
   formatCurrency,
   formatDate,
   daysUntil,
-  type Employee,
-  type Contract,
 } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import type { Database } from "@/types/database"
+
+type Employee = Database['public']['Tables']['employees']['Row']
+type Contract = Database['public']['Tables']['contracts']['Row']
 
 export default function EmployeeDetailPage() {
   const params = useParams()
@@ -66,7 +68,7 @@ export default function EmployeeDetailPage() {
         const { data: employeeData, error: employeeError } = await supabase
           .from('employees')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', params.id as string)
           .eq('company_id', userData.company_id)
           .single()
 
@@ -81,7 +83,7 @@ export default function EmployeeDetailPage() {
         const { data: contractsData } = await supabase
           .from('contracts')
           .select('*')
-          .eq('employee_id', params.id)
+          .eq('employee_id', params.id as string)
           .eq('company_id', userData.company_id)
 
         setRelatedContracts(contractsData || [])
@@ -128,14 +130,14 @@ export default function EmployeeDetailPage() {
   const hasExpiringContract = employee.termination_date && daysUntil(employee.termination_date) <= 90
 
   // Employee type label
-  const getEmployeeTypeLabel = (type: string) => {
+  const getEmployeeTypeLabel = (type: string | null) => {
     const labels: Record<string, string> = {
       employee: "Dipendente",
       collaborator: "Collaboratore",
       consultant: "Consulente",
       intern: "Tirocinante",
     }
-    return labels[type] || type
+    return (type && labels[type]) || type || 'N/A'
   }
 
   // Check for expiring dates
@@ -280,7 +282,7 @@ export default function EmployeeDetailPage() {
               <div className="bg-muted/20 rounded-xl p-3">
                 <div className="text-xs text-muted-foreground mb-1">Data Assunzione</div>
                 <div className="text-sm font-medium text-foreground">
-                  {formatDate(employee.hire_date)}
+                  {formatDate(employee.hire_date ?? '')}
                 </div>
               </div>
               {employee.termination_date && (
@@ -306,7 +308,7 @@ export default function EmployeeDetailPage() {
             </div>
 
             {/* Fixed Term Info */}
-            {employee.fixed_term_count > 0 && (
+            {(employee.fixed_term_count ?? 0) > 0 && (
               <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                 <div className="text-xs text-blue-400">
                   <strong>Contratti a tempo determinato:</strong> {employee.fixed_term_count} contratti per un totale di {employee.fixed_term_months} mesi
@@ -340,21 +342,21 @@ export default function EmployeeDetailPage() {
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">RAL</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(employee.ral)}
+                  {formatCurrency(employee.ral ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">Lordo annuo</div>
               </div>
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">Costo Aziendale</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(employee.gross_cost)}
+                  {formatCurrency(employee.gross_cost ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">Lordo annuo</div>
               </div>
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">Costo Mensile</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(Math.round(employee.gross_cost / 12))}
+                  {formatCurrency(Math.round((employee.gross_cost ?? 0) / 12))}
                 </div>
                 <div className="text-xs text-muted-foreground">Stimato</div>
               </div>
@@ -480,10 +482,10 @@ export default function EmployeeDetailPage() {
                 >
                   <div className="text-sm font-medium text-foreground">{contract.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {formatDate(contract.start_date)} - {contract.end_date ? formatDate(contract.end_date) : "Indeterminato"}
+                    {contract.start_date ? formatDate(contract.start_date) : "N/A"} - {contract.end_date ? formatDate(contract.end_date) : "Indeterminato"}
                   </div>
                   <div className="text-xs text-primary mt-1">
-                    {formatCurrency(contract.value)}/anno
+                    {formatCurrency(contract.value ?? 0)}/anno
                   </div>
                 </Link>
               ))}

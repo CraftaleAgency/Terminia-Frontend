@@ -27,7 +27,11 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { formatCurrency, type Counterpart, type Employee } from "@/lib/mock-data"
+import { formatCurrency } from "@/lib/mock-data"
+import type { Database } from '@/types/database'
+
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type EmployeeRow = Database['public']['Tables']['employees']['Row']
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { analyzeContractAction } from "@/lib/actions/contracts"
@@ -154,8 +158,8 @@ function NewContractContent() {
   })
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["general"]))
-  const [counterparts, setCounterparts] = useState<Counterpart[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [counterparts, setCounterparts] = useState<CounterpartRow[]>([])
+  const [employees, setEmployees] = useState<EmployeeRow[]>([])
 
   // Load data
   useEffect(() => {

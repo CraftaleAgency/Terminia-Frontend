@@ -50,6 +50,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import type { Database } from "@/types/database"
 
 // =====================
 // TYPES
@@ -71,31 +72,9 @@ type AlertType =
   | 'ccnl_renewed' | 'fringe_benefit_threshold'
   | 'non_compete_expiry' | 'probation_ending'
 
-interface AlertWithRelations {
-  id: string
-  company_id: string
-  contract_id: string | null
-  counterpart_id: string | null
-  employee_id: string | null
-  bando_id: string | null
-  milestone_id: string | null
-  invoice_id: string | null
-  alert_type: AlertType
-  priority: AlertPriority
-  title: string
-  description: string | null
-  trigger_date: string
-  triggered_at: string | null
-  status: AlertStatus
-  handled_by: string | null
-  handled_at: string | null
-  handle_note: string | null
-  snoozed_until: string | null
-  escalated_to: string | null
-  escalated_at: string | null
-  escalation_reason: string | null
-  notified_via: string[]
-  created_at: string
+type AlertRow = Database['public']['Tables']['alerts']['Row']
+
+interface AlertWithRelations extends AlertRow {
   contracts: { title: string } | null
   counterparts: { name: string } | null
   employees: { full_name: string } | null
@@ -252,7 +231,7 @@ export default function AlertsPage() {
         return new Date(a.trigger_date).getTime() - new Date(b.trigger_date).getTime()
       })
       
-      setAlerts(sorted)
+      setAlerts(sorted as AlertWithRelations[])
     } catch (error) {
       console.error('Error fetching alerts:', error)
       toast({
@@ -290,7 +269,8 @@ export default function AlertsPage() {
       low: [],
     }
     alerts.forEach(alert => {
-      groups[alert.priority].push(alert)
+      const key = alert.priority as AlertPriority
+      if (key in groups) groups[key].push(alert)
     })
     return groups
   }, [alerts])
@@ -674,7 +654,7 @@ export default function AlertsPage() {
                       <div className="divide-y">
                         {alertsInGroup.map(alert => {
                           const entityLink = getEntityLink(alert)
-                          const statusConf = STATUS_CONFIG[alert.status]
+                          const statusConf = STATUS_CONFIG[alert.status as AlertStatus]
                           const isSelected = selectedIds.has(alert.id)
                           
                           return (
@@ -703,7 +683,7 @@ export default function AlertsPage() {
                                       {config.label}
                                     </Badge>
                                     <Badge variant="secondary">
-                                      {ALERT_TYPE_LABELS[alert.alert_type]}
+                                      {ALERT_TYPE_LABELS[alert.alert_type as AlertType]}
                                     </Badge>
                                     <span className="text-xs text-muted-foreground">
                                       {formatTriggerDate(alert.trigger_date)}

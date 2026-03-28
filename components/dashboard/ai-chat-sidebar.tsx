@@ -231,7 +231,7 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
           setMessages(prev => [...prev, {
             id: (Date.now() + 1).toString(),
             role: "assistant" as const,
-            content: result.response,
+            content: result.response ?? '',
             timestamp: new Date()
           }])
         } else {

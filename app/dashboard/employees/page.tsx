@@ -15,21 +15,12 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { Database } from "@/types/database"
 
-interface Employee {
-  id: string
-  full_name: string
-  email?: string
-  phone?: string
-  employee_type: string
-  role?: string
-  department?: string
-  hire_date: string
-  termination_date?: string
-  ral: number
-  gross_cost: number
-  status: string
-}
+type Employee = Database['public']['Tables']['employees']['Row']
+
+const isEmployeeActive = (emp: Employee): boolean =>
+  !emp.termination_date || new Date(emp.termination_date) > new Date()
 
 export default function EmployeesPage() {
   const { user } = useUser()
@@ -83,24 +74,25 @@ export default function EmployeesPage() {
 
     const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter
     const matchesContractType = contractTypeFilter === "all" || emp.employee_type === contractTypeFilter
-    const matchesStatus = statusFilter === "all" || emp.status === statusFilter
+    const empStatus = isEmployeeActive(emp) ? "active" : "inactive"
+    const matchesStatus = statusFilter === "all" || empStatus === statusFilter
 
     return matchesSearch && matchesDepartment && matchesContractType && matchesStatus
   })
 
   const stats = {
     total: employees.length,
-    active: employees.filter(e => e.status === "active").length,
+    active: employees.filter(e => isEmployeeActive(e)).length,
     expiring: employees.filter(e => {
       if (!e.termination_date) return false
       const endDate = new Date(e.termination_date)
       const days = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-      return days <= 90 && e.status === "active"
+      return days <= 90 && isEmployeeActive(e)
     }).length,
     totalSalary: employees.reduce((sum, e) => sum + (e.ral || 0), 0) / 12,
   }
 
-  const departments = [...new Set(employees.map(e => e.department).filter(Boolean))]
+  const departments = [...new Set(employees.map(e => e.department).filter((d): d is string => Boolean(d)))]
 
   const getContractTypeLabel = (type: string) => {
     switch (type) {
@@ -121,7 +113,7 @@ export default function EmployeesPage() {
     }
   }
 
-  const getDaysUntil = (dateStr: string | undefined) => {
+  const getDaysUntil = (dateStr: string | null | undefined) => {
     if (!dateStr) return null
     const date = new Date(dateStr)
     const now = new Date()
@@ -334,8 +326,8 @@ export default function EmployeesPage() {
 
                   {/* Contract Type */}
                   <div className="flex items-center gap-3">
-                    <span className={cn("text-xs px-2 py-1 rounded-full", getContractTypeColor(employee.employee_type))}>
-                      {getContractTypeLabel(employee.employee_type)}
+                    <span className={cn("text-xs px-2 py-1 rounded-full", getContractTypeColor(employee.employee_type ?? ''))}>
+                      {getContractTypeLabel(employee.employee_type ?? '')}
                     </span>
                     {employee.ral && (
                       <span className="text-xs text-muted-foreground">

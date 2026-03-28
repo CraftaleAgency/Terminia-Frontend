@@ -29,13 +29,15 @@ import { useParams, useRouter } from "next/navigation"
 import {
   formatCurrency,
   formatDate,
-  type Counterpart,
-  type Contract,
 } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { verifyCounterpartAction } from "@/lib/actions/osint"
 import { toast } from "sonner"
+import type { Database } from "@/types/database"
+
+type Counterpart = Database['public']['Tables']['counterparts']['Row']
+type Contract = Database['public']['Tables']['contracts']['Row']
 
 export default function CounterpartDetailPage() {
   const params = useParams()
@@ -69,7 +71,7 @@ export default function CounterpartDetailPage() {
         const { data: counterpartData, error: counterpartError } = await supabase
           .from('counterparts')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', params.id as string)
           .eq('company_id', userData.company_id)
           .single()
 
@@ -84,7 +86,7 @@ export default function CounterpartDetailPage() {
         const { data: contractsData } = await supabase
           .from('contracts')
           .select('*')
-          .eq('counterpart_id', params.id)
+          .eq('counterpart_id', params.id as string)
           .eq('company_id', userData.company_id)
 
         setRelatedContracts(contractsData || [])
@@ -103,7 +105,7 @@ export default function CounterpartDetailPage() {
     setIsRefreshing(true)
     try {
       const result = await verifyCounterpartAction({
-        vatNumber: counterpart.vat_number,
+        vatNumber: counterpart.vat_number ?? '',
         companyName: counterpart.name,
         counterpartId: counterpart.id,
       })
@@ -182,7 +184,7 @@ export default function CounterpartDetailPage() {
   }
 
   // Total exposure
-  const totalExposure = relatedContracts.reduce((sum, c) => sum + c.value, 0)
+  const totalExposure = relatedContracts.reduce((sum, c) => sum + (c.value ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -210,12 +212,8 @@ export default function CounterpartDetailPage() {
                 {counterpart.type === "supplier" ? "Fornitore" :
                  counterpart.type === "client" ? "Cliente" : "Partner"}
               </span>
-              <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                counterpart.is_active !== false
-                  ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10"
-                  : "border-muted-foreground/30 text-muted-foreground bg-muted/20"
-              }`}>
-                {counterpart.is_active !== false ? "Attiva" : "Inattiva"}
+              <span className="text-xs px-2.5 py-1 rounded-full border border-emerald-400/30 text-emerald-400 bg-emerald-400/10">
+                Attiva
               </span>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -286,20 +284,20 @@ export default function CounterpartDetailPage() {
                     stroke="currentColor"
                     strokeWidth="8"
                     fill="none"
-                    strokeDasharray={`${(counterpart.reliability_score / 100) * 283} 283`}
-                    className={getReliabilityColor(counterpart.reliability_score)}
+                    strokeDasharray={`${((counterpart.reliability_score ?? 0) / 100) * 283} 283`}
+                    className={getReliabilityColor(counterpart.reliability_score ?? 0)}
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={`text-2xl font-bold ${getReliabilityColor(counterpart.reliability_score)}`}>
-                    {counterpart.reliability_score}
+                  <span className={`text-2xl font-bold ${getReliabilityColor(counterpart.reliability_score ?? 0)}`}>
+                    {counterpart.reliability_score ?? 0}
                   </span>
                   <span className="text-[10px] text-muted-foreground">/ 100</span>
                 </div>
               </div>
               <div>
-                <div className={`text-lg font-semibold ${getReliabilityColor(counterpart.reliability_score)}`}>
-                  {getReliabilityLabel(counterpart.reliability_label)}
+                <div className={`text-lg font-semibold ${getReliabilityColor(counterpart.reliability_score ?? 0)}`}>
+                  {getReliabilityLabel(counterpart.reliability_label ?? '')}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Aggiornato: {lastVerified || "oggi 08:30"}
@@ -318,8 +316,8 @@ export default function CounterpartDetailPage() {
               ].map((item) => (
                 <div key={item.label} className="bg-muted/20 rounded-xl p-3 text-center">
                   <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
-                  <div className={`text-sm font-semibold ${item.score / item.max >= 0.7 ? "text-emerald-400" : item.score / item.max >= 0.5 ? "text-primary" : "text-amber-400"}`}>
-                    {item.score}/{item.max}
+                  <div className={`text-sm font-semibold ${(item.score ?? 0) / item.max >= 0.7 ? "text-emerald-400" : (item.score ?? 0) / item.max >= 0.5 ? "text-primary" : "text-amber-400"}`}>
+                    {item.score ?? 0}/{item.max}
                   </div>
                 </div>
               ))}
@@ -476,12 +474,12 @@ export default function CounterpartDetailPage() {
                     <div>
                       <div className="text-sm font-medium text-foreground">{contract.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {contract.reference_number} - {getStatusLabel(contract.status)}
+                        {contract.reference_number} - {getStatusLabel(contract.status ?? '')}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-foreground">
-                        {formatCurrency(contract.value)}
+                        {formatCurrency(contract.value ?? 0)}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {contract.value_type === "monthly" ? "/mese" : contract.value_type === "annual" ? "/anno" : "totale"}
@@ -508,12 +506,12 @@ export default function CounterpartDetailPage() {
               {formatCurrency(counterpart.total_exposure || totalExposure)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {counterpart.active_contracts || relatedContracts.length} contratti attivi
+              {relatedContracts.length} contratti attivi
             </div>
           </motion.div>
 
           {/* Warnings Card */}
-          {(counterpart.has_anac_annotations || counterpart.reliability_score < 60) && (
+          {(counterpart.has_anac_annotations || (counterpart.reliability_score ?? 0) < 60) && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -529,7 +527,7 @@ export default function CounterpartDetailPage() {
                   Annotazioni ANAC rilevate su questa controparte
                 </div>
               )}
-              {counterpart.reliability_score < 60 && (
+              {(counterpart.reliability_score ?? 0) < 60 && (
                 <div className="text-xs text-amber-400/80">
                   Reliability score sotto la soglia di sicurezza (60)
                 </div>

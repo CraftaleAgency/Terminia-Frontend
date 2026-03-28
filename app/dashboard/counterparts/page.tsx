@@ -16,19 +16,9 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { Database } from "@/types/database"
 
-interface Counterpart {
-  id: string
-  name: string
-  vat_number: string
-  city?: string
-  sector?: string
-  reliability_score: number
-  reliability_label: string
-  status: string
-  total_exposure: number
-  active_contracts: number
-}
+type Counterpart = Database['public']['Tables']['counterparts']['Row']
 
 const getReliabilityColor = (score: number) => {
   if (score >= 80) return "text-green-400"
@@ -100,10 +90,10 @@ export default function CounterpartsPage() {
   const filteredCounterparts = counterparts.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.vat_number.toLowerCase().includes(search.toLowerCase()) ||
+      (c.vat_number?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
       (c.city?.toLowerCase().includes(search.toLowerCase()) ?? false)
 
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter
+    const matchesStatus = statusFilter === "all" || statusFilter === "active"
     const matchesSector = sectorFilter === "all" || c.sector === sectorFilter
 
     return matchesSearch && matchesStatus && matchesSector
@@ -111,12 +101,12 @@ export default function CounterpartsPage() {
 
   const stats = {
     total: counterparts.length,
-    active: counterparts.filter(c => c.status === "active").length,
-    excellent: counterparts.filter(c => c.reliability_score >= 80).length,
-    attention: counterparts.filter(c => c.reliability_score < 60).length,
+    active: counterparts.length,
+    excellent: counterparts.filter(c => (c.reliability_score ?? 0) >= 80).length,
+    attention: counterparts.filter(c => (c.reliability_score ?? 0) < 60).length,
   }
 
-  const sectors = [...new Set(counterparts.map(c => c.sector).filter(Boolean))]
+  const sectors = [...new Set(counterparts.map(c => c.sector).filter((s): s is string => Boolean(s)))]
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("it-IT", {
@@ -287,7 +277,7 @@ export default function CounterpartsPage() {
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {counterpart.vat_number} · {counterpart.city || 'N/A'}
+                    {counterpart.vat_number || 'N/A'} · {counterpart.city || 'N/A'}
                   </div>
                 </div>
 
@@ -295,7 +285,7 @@ export default function CounterpartsPage() {
                 <div className="hidden md:flex items-center gap-6">
                   {/* Contracts count */}
                   <div className="text-center">
-                    <div className="text-sm font-medium text-foreground">{counterpart.active_contracts || 0}</div>
+                    <div className="text-sm font-medium text-foreground">0</div>
                     <div className="text-xs text-muted-foreground">Contratti</div>
                   </div>
 
@@ -325,12 +315,8 @@ export default function CounterpartsPage() {
                 </div>
 
                 {/* Status */}
-                <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                  counterpart.status === "active"
-                    ? "border-primary/30 text-primary bg-primary/10"
-                    : "border-muted-foreground/30 text-muted-foreground bg-muted/20"
-                }`}>
-                  {counterpart.status === "active" ? "Attiva" : "Inattiva"}
+                <span className="text-xs px-2.5 py-1 rounded-full border border-primary/30 text-primary bg-primary/10">
+                  Attiva
                 </span>
 
                 <MoreHorizontal className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />

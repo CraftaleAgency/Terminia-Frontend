@@ -44,10 +44,14 @@ import {
   getPaymentStatusColor,
   getPaymentStatusLabel,
   getInvoiceTypeLabel,
-  type Invoice,
-  type Counterpart,
-  type Contract,
+  type PaymentStatus,
+  type InvoiceType,
 } from "@/lib/mock-data"
+import type { Database } from '@/types/database'
+
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type ContractRow = Database['public']['Tables']['contracts']['Row']
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -58,9 +62,9 @@ export default function InvoiceDetailPage() {
   const router = useRouter()
   const { user } = useUser()
   const supabase = createClient()
-  const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
-  const [contract, setContract] = useState<Contract | null>(null)
+  const [invoice, setInvoice] = useState<InvoiceRow | null>(null)
+  const [counterpart, setCounterpart] = useState<CounterpartRow | null>(null)
+  const [contract, setContract] = useState<ContractRow | null>(null)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
@@ -87,7 +91,7 @@ export default function InvoiceDetailPage() {
         const { data: invoiceData, error: invoiceError } = await supabase
           .from('invoices')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', params.id as string)
           .eq('company_id', userData.company_id)
           .single()
 
@@ -182,10 +186,10 @@ export default function InvoiceDetailPage() {
   }
 
   // Calculate days until due
-  const daysUntilDue = invoice ? daysUntil(invoice.due_date) : 0
+  const daysUntilDue = invoice ? daysUntil(invoice.due_date ?? '') : 0
 
   // Calculate VAT amount
-  const vatAmount = invoice ? (invoice.amount_net * invoice.vat_rate) / 100 : 0
+  const vatAmount = invoice ? (invoice.amount_net * (invoice.vat_rate ?? 0)) / 100 : 0
 
   // Timeline steps
   const timelineSteps = useMemo(() => {
@@ -279,9 +283,9 @@ export default function InvoiceDetailPage() {
               </h1>
               <span className={cn(
                 "text-sm px-3 py-1 rounded-full border",
-                getPaymentStatusColor(invoice.payment_status)
+                getPaymentStatusColor(invoice.payment_status as PaymentStatus)
               )}>
-                {getPaymentStatusLabel(invoice.payment_status)}
+                {getPaymentStatusLabel(invoice.payment_status as PaymentStatus)}
               </span>
               <span className={cn(
                 "text-xs px-2.5 py-1 rounded-full border",
@@ -289,7 +293,7 @@ export default function InvoiceDetailPage() {
                   ? "border-primary/30 text-primary bg-primary/10"
                   : "border-purple-400/30 text-purple-400 bg-purple-400/10"
               )}>
-                {getInvoiceTypeLabel(invoice.invoice_type)}
+                {getInvoiceTypeLabel(invoice.invoice_type as InvoiceType)}
               </span>
             </div>
           </div>
@@ -359,7 +363,7 @@ export default function InvoiceDetailPage() {
                 <div>
                   <div className="text-xs text-muted-foreground">Data Emissione</div>
                   <div className="text-sm font-medium text-foreground mt-1">
-                    {formatDate(invoice.invoice_date)}
+                    {formatDate(invoice.invoice_date ?? '')}
                   </div>
                 </div>
 
@@ -367,7 +371,7 @@ export default function InvoiceDetailPage() {
                   <div className="text-xs text-muted-foreground">Data Scadenza</div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm font-medium text-foreground">
-                      {formatDate(invoice.due_date)}
+                      {formatDate(invoice.due_date ?? '')}
                     </span>
                     {invoice.payment_status !== "paid" && (
                       <span className={cn(
@@ -494,7 +498,7 @@ export default function InvoiceDetailPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-base font-semibold text-foreground">Totale Lordo</span>
                   <span className="text-xl font-bold text-primary">
-                    {formatCurrency(invoice.amount_gross)}
+                    {formatCurrency(invoice.amount_gross ?? 0)}
                   </span>
                 </div>
               </div>
@@ -661,7 +665,7 @@ export default function InvoiceDetailPage() {
                 {invoice.invoice_number}
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                {formatCurrency(invoice.amount_gross)}
+                {formatCurrency(invoice.amount_gross ?? 0)}
               </div>
             </div>
 
@@ -716,7 +720,7 @@ export default function InvoiceDetailPage() {
                 #{invoice.invoice_number}
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                {formatCurrency(invoice.amount_gross)}
+                {formatCurrency(invoice.amount_gross ?? 0)}
               </div>
             </div>
           </div>

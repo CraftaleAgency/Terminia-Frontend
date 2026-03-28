@@ -37,57 +37,39 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { reanalyzeContractAction } from "@/lib/actions/contracts"
+import type { Database } from '@/types/database'
 
 // Types
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
-interface Contract {
-  id: string
-  title: string
-  contract_type: string
-  counterpart_id?: string
+type ContractRow = Database['public']['Tables']['contracts']['Row']
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+
+type Contract = ContractRow & {
   counterpart_name?: string
-  employee_id?: string
   employee_name?: string
-  status: ContractStatus
-  value: number
-  value_type: "total" | "annual" | "monthly"
-  start_date: string
-  end_date: string
-  signing_date?: string
-  auto_renewal: boolean
-  renewal_notice_days?: number
-  risk_score: number
-  reference_number?: string
-  ai_summary?: string
+  counterparts?: { name: string; type: string; reliability_score: number | null; reliability_label: string | null; has_anac_annotations: boolean | null } | null
+  employees?: { full_name: string; role: string | null; department: string | null; employee_type: string | null } | null
 }
 
 interface Counterpart {
   id: string
   name: string
   type: string
-  reliability_score: number
-  reliability_label: string
-  has_anac_annotations: boolean
+  reliability_score: number | null
+  reliability_label: string | null
+  has_anac_annotations: boolean | null
 }
 
 interface Employee {
   id: string
   full_name: string
-  role: string
-  department: string
-  employee_type: string
+  role: string | null
+  department: string | null
+  employee_type: string | null
 }
 
-interface Invoice {
-  id: string
-  invoice_number: string
-  invoice_date: string
-  amount_gross: number
-  payment_status: string
-  counterpart_name: string
-  contract_id: string
-}
+type Invoice = InvoiceRow & { counterpart_name?: string }
 
 interface Clause {
   id: string
@@ -372,19 +354,19 @@ export default function ContractDetailPage() {
           // Set counterpart data
           if (contractData.counterparts) {
             setCounterpart({
-              id: contractData.counterpart_id,
+              id: contractData.counterpart_id ?? '',
               name: contractData.counterparts.name,
               type: contractData.counterparts.type,
-              reliability_score: contractData.counterparts.reliability_score || 0,
-              reliability_label: contractData.counterparts.reliability_label || 'unverified',
-              has_anac_annotations: contractData.counterparts.has_anac_annotations || false,
+              reliability_score: contractData.counterparts.reliability_score,
+              reliability_label: contractData.counterparts.reliability_label,
+              has_anac_annotations: contractData.counterparts.has_anac_annotations,
             })
           }
 
           // Set employee data
           if (contractData.employees) {
             setEmployee({
-              id: contractData.employee_id,
+              id: contractData.employee_id ?? '',
               full_name: contractData.employees.full_name,
               role: contractData.employees.role,
               department: contractData.employees.department,
@@ -400,7 +382,7 @@ export default function ContractDetailPage() {
             .order('invoice_date', { ascending: false })
 
           if (invoicesData) {
-            setRelatedInvoices(invoicesData as Invoice[])
+            setRelatedInvoices(invoicesData)
           }
 
           // Fetch clauses
@@ -463,7 +445,7 @@ export default function ContractDetailPage() {
     )
   }
 
-  const days = daysUntil(contract.end_date)
+  const days = daysUntil(contract.end_date ?? '')
   const isHR = ["permanent", "fixed_term", "cococo", "apprenticeship", "internship", "collaboration"].includes(contract.contract_type)
 
   // Filter clauses by risk
@@ -476,8 +458,8 @@ export default function ContractDetailPage() {
   const filteredObligations = obligations.filter(o => o.party === obligationParty)
 
   // Calculate invoice totals
-  const totalInvoiced = relatedInvoices.reduce((sum, i) => sum + i.amount_gross, 0)
-  const totalPaid = relatedInvoices.filter(i => i.payment_status === "paid").reduce((sum, i) => sum + i.amount_gross, 0)
+  const totalInvoiced = relatedInvoices.reduce((sum, i) => sum + (i.amount_gross ?? 0), 0)
+  const totalPaid = relatedInvoices.filter(i => i.payment_status === "paid").reduce((sum, i) => sum + (i.amount_gross ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -503,11 +485,11 @@ export default function ContractDetailPage() {
                 contract.status === "terminated" ? "border-red-400/30 text-red-400 bg-red-400/10" :
                 "border-muted-foreground/30 text-muted-foreground bg-muted/20"
               }`}>
-                {getStatusLabel(contract.status)}
+                {getStatusLabel(contract.status as ContractStatus)}
               </span>
               <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                contract.risk_score < 30 ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10" :
-                contract.risk_score < 60 ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
+                (contract.risk_score ?? 0) < 30 ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10" :
+                (contract.risk_score ?? 0) < 60 ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
                 "border-red-400/30 text-red-400 bg-red-400/10"
               }`}>
                 Risk: {contract.risk_score}/100
@@ -614,7 +596,7 @@ export default function ContractDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Valore</div>
                           <div className="text-lg font-semibold text-foreground">
-                            {formatCurrency(contract.value)}
+                            {formatCurrency(contract.value ?? 0)}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {contract.value_type === "monthly" ? "Mensile" : contract.value_type === "annual" ? "Annuale" : "Totale"}
@@ -644,19 +626,19 @@ export default function ContractDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Firma</div>
                           <div className="text-sm font-medium text-foreground">
-                            {contract.signing_date ? formatDate(contract.signing_date) : "-"}
+                            {contract.signed_date ? formatDate(contract.signed_date) : "-"}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Inizio</div>
                           <div className="text-sm font-medium text-foreground">
-                            {formatDate(contract.start_date)}
+                            {formatDate(contract.start_date ?? '')}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Fine</div>
                           <div className={`text-sm font-medium ${days <= 30 ? "text-amber-400" : "text-foreground"}`}>
-                            {formatDate(contract.end_date)}
+                            {formatDate(contract.end_date ?? '')}
                           </div>
                         </div>
                         {contract.auto_renewal && (
@@ -1261,12 +1243,12 @@ export default function ContractDetailPage() {
                             <div>
                               <div className="text-sm font-medium text-foreground">{invoice.invoice_number}</div>
                               <div className="text-xs text-muted-foreground">
-                                {formatDate(invoice.invoice_date)} - {invoice.counterpart_name}
+                                {formatDate(invoice.invoice_date ?? '')} - {invoice.counterpart_name}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-foreground">
-                                {formatCurrency(invoice.amount_gross)}
+                                {formatCurrency(invoice.amount_gross ?? 0)}
                               </div>
                               <span className={`text-xs px-2 py-0.5 rounded ${
                                 invoice.payment_status === "paid" ? "bg-emerald-500/10 text-emerald-400" :
@@ -1453,9 +1435,9 @@ export default function ContractDetailPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-muted-foreground">Reliability Score</span>
                   <span className={`text-sm font-semibold ${
-                    counterpart.reliability_score >= 80 ? "text-emerald-400" :
-                    counterpart.reliability_score >= 60 ? "text-primary" :
-                    counterpart.reliability_score >= 40 ? "text-amber-400" :
+                    (counterpart.reliability_score ?? 0) >= 80 ? "text-emerald-400" :
+                    (counterpart.reliability_score ?? 0) >= 60 ? "text-primary" :
+                    (counterpart.reliability_score ?? 0) >= 40 ? "text-amber-400" :
                     "text-red-400"
                   }`}>
                     {counterpart.reliability_score}/100
@@ -1464,9 +1446,9 @@ export default function ContractDetailPage() {
                 <div className="w-full bg-muted/30 rounded-full h-1.5">
                   <div
                     className={`h-1.5 rounded-full transition-all ${
-                      counterpart.reliability_score >= 80 ? "bg-emerald-400" :
-                      counterpart.reliability_score >= 60 ? "bg-primary" :
-                      counterpart.reliability_score >= 40 ? "bg-amber-400" :
+                      (counterpart.reliability_score ?? 0) >= 80 ? "bg-emerald-400" :
+                      (counterpart.reliability_score ?? 0) >= 60 ? "bg-primary" :
+                      (counterpart.reliability_score ?? 0) >= 40 ? "bg-amber-400" :
                       "bg-red-400"
                     }`}
                     style={{ width: `${counterpart.reliability_score}%` }}
@@ -1554,7 +1536,7 @@ export default function ContractDetailPage() {
                   Contratto in Scadenza
                 </div>
                 <p className="text-xs text-red-400/80">
-                  Scade il {formatDate(contract.end_date)}
+                  Scade il {formatDate(contract.end_date ?? '')}
                 </p>
               </div>
             )}

@@ -42,38 +42,22 @@ import {
   daysUntil,
 } from "@/lib/mock-data"
 import { sendChatMessageAction } from "@/lib/actions/chat"
+import type { Database } from "@/types/database"
 
-type BandoSource = "anac" | "ted_europa" | "invitalia" | "mimit" | "regione_lombardia" | "regione_lazio" | "regione_piemonte" | "consip" | "camera_commercio" | "inps" | "other"
+type BandoRow = Database['public']['Tables']['bandi']['Row']
 type ParticipationStatus = "new" | "saved" | "evaluating" | "participating" | "submitted" | "won" | "lost" | "withdrawn"
 
-interface Bando {
-  id: string
-  source: BandoSource
-  source_label?: string
-  source_url: string
-  title: string
-  authority_name: string
-  description?: string
-  base_value: number
-  deadline: string
-  publication_date?: string
-  category?: string
+type Bando = Omit<BandoRow, 'match_score' | 'base_value' | 'score_sector' | 'score_size' | 'score_geo' | 'score_requirements' | 'score_feasibility'> & {
   match_score: number
-  match_explanation?: string
+  base_value: number
   score_sector: number
   score_size: number
   score_geo: number
   score_requirements: number
   score_feasibility: number
-  participation_status: ParticipationStatus
-  cpv_codes: string[]
-  requirements?: string[]
-  gap_satisfied?: string[]
-  gap_missing?: string[]
-  internal_notes?: string
-  subappalto_allowed?: boolean
-  subappalto_max_pct?: number
-  rti_allowed?: boolean
+  requirements: string[]
+  gap_satisfied: string[]
+  gap_missing: string[]
 }
 
 type BandoTabId = "dettaglio" | "match" | "gap" | "checklist" | "lotti" | "competitor"
@@ -82,7 +66,7 @@ const bandoTabs: { id: BandoTabId; label: string; icon: React.ReactNode }[] = [
   { id: "dettaglio", label: "Dettaglio", icon: <FileText className="size-4" /> },
   { id: "match", label: "Analisi Match", icon: <Target className="size-4" /> },
   { id: "gap", label: "Gap Analysis", icon: <AlertTriangle className="size-4" /> },
-  { id: "checklist", label: "Checklist", icon: <CheckCircle2 class="size-4" /> },
+  { id: "checklist", label: "Checklist", icon: <CheckCircle2 className="size-4" /> },
   { id: "lotti", label: "Lotti", icon: <Users className="size-4" /> },
   { id: "competitor", label: "Competitor", icon: <TrendingUp className="size-4" /> },
 ]
@@ -206,36 +190,20 @@ export default function BandoDetailPage() {
           const requirements = data.requirements_json as { items?: string[] } | null
 
           const bandoData: Bando = {
-            id: data.id,
-            source: data.source as BandoSource,
-            source_label: data.source_label,
-            source_url: data.source_url,
-            title: data.title,
-            authority_name: data.authority_name,
-            description: data.description,
-            base_value: data.base_value,
-            deadline: data.deadline,
-            publication_date: data.publication_date,
-            category: data.contract_category,
-            match_score: data.match_score,
-            match_explanation: data.match_explanation,
-            score_sector: data.score_sector,
-            score_size: data.score_size,
-            score_geo: data.score_geo,
-            score_requirements: data.score_requirements,
-            score_feasibility: data.score_feasibility,
-            participation_status: data.participation_status as ParticipationStatus,
-            cpv_codes: data.cpv_codes || [],
+            ...data,
+            match_score: data.match_score ?? 0,
+            base_value: data.base_value ?? 0,
+            score_sector: data.score_sector ?? 0,
+            score_size: data.score_size ?? 0,
+            score_geo: data.score_geo ?? 0,
+            score_requirements: data.score_requirements ?? 0,
+            score_feasibility: data.score_feasibility ?? 0,
             requirements: requirements?.items || [],
             gap_satisfied: gapAnalysis?.satisfied || [],
             gap_missing: gapAnalysis?.missing || [],
-            internal_notes: data.internal_notes,
-            subappalto_allowed: data.subappalto_allowed,
-            subappalto_max_pct: data.subappalto_max_pct,
-            rti_allowed: data.rti_allowed,
           }
           setBando(bandoData)
-          setParticipationStatus(bandoData.participation_status)
+          setParticipationStatus((bandoData.participation_status ?? 'new') as ParticipationStatus)
           setInternalNotes(bandoData.internal_notes || "")
         }
       } catch (error) {
@@ -558,7 +526,7 @@ export default function BandoDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Categoria</div>
                           <div className="text-sm font-medium text-foreground capitalize">
-                            {bando.category || "Servizi"}
+                            {bando.contract_category || "Servizi"}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">

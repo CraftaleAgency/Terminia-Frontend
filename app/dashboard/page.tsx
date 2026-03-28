@@ -35,6 +35,16 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { Database } from "@/types/database"
+
+type ContractRow = Database['public']['Tables']['contracts']['Row']
+type AlertRow = Database['public']['Tables']['alerts']['Row']
+
+type Contract = ContractRow & {
+  counterparts: { name: string } | null
+}
+
+type Alert = AlertRow
 
 // Helper functions
 const formatCurrency = (value: number) => {
@@ -72,23 +82,6 @@ const getFutureMonthLabels = () => {
     months.push(d.toLocaleDateString('it-IT', { month: 'short' }))
   }
   return months
-}
-
-interface Contract {
-  id: string
-  title: string
-  status: string
-  value: number
-  end_date: string
-  counterparts?: { name: string }
-}
-
-interface Alert {
-  id: string
-  title: string
-  priority: string
-  trigger_date: string
-  status: string
 }
 
 export default function DashboardPage() {
@@ -506,10 +499,10 @@ export default function DashboardPage() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-foreground truncate">
-                    {contract.title} {contract.counterpart_name ? `- ${contract.counterpart_name}` : contract.employee_name ? `- ${contract.employee_name}` : ""}
+                    {contract.title} {contract.counterparts?.name ? `- ${contract.counterparts.name}` : ""}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {contract.contract_type.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())} - scade {formatDate(contract.end_date)}
+                    {contract.contract_type.replace(/_/g, " ").replace(/^\w/, (c: string) => c.toUpperCase())} - scade {formatDate(contract.end_date ?? '')}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -520,14 +513,14 @@ export default function DashboardPage() {
                   }`}>
                     {contract.status === "active" ? "Attivo" : 
                      contract.status === "expiring" ? "In Scadenza" : 
-                     contract.status.replace(/^\w/, c => c.toUpperCase())}
+                     (contract.status ?? '').replace(/^\w/, (c: string) => c.toUpperCase())}
                   </span>
                   <span className={`text-xs px-2.5 py-1 rounded-full ${
-                    contract.risk_score < 30 ? "text-emerald-400 bg-emerald-400/10" :
-                    contract.risk_score < 60 ? "text-amber-400 bg-amber-400/10" :
+                    (contract.risk_score ?? 0) < 30 ? "text-emerald-400 bg-emerald-400/10" :
+                    (contract.risk_score ?? 0) < 60 ? "text-amber-400 bg-amber-400/10" :
                     "text-red-400 bg-red-400/10"
                   }`}>
-                    {contract.risk_score < 30 ? "Basso" : contract.risk_score < 60 ? "Medio" : "Alto"}
+                    {(contract.risk_score ?? 0) < 30 ? "Basso" : (contract.risk_score ?? 0) < 60 ? "Medio" : "Alto"}
                   </span>
                 </div>
               </Link>
@@ -569,7 +562,7 @@ export default function DashboardPage() {
                   {alert.title}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {alert.contract_name || alert.counterpart_name || alert.description}
+                  {alert.description}
                 </div>
                 {alert.trigger_date && (
                   <div className="text-xs text-muted-foreground/70 mt-1">
