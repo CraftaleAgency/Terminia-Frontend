@@ -12,12 +12,19 @@ type BandoRow = Database['public']['Tables']['bandi']['Row']
 type AlertRow = Database['public']['Tables']['alerts']['Row']
 
 // Helper: get company ID for current user
-async function getCompanyId(): Promise<string | null> {
+export async function getCompanyId(): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data } = await supabase.from('users').select('company_id').eq('id', user.id).single()
   return data?.company_id || null
+}
+
+// Helper: get current user ID
+export async function getUserId(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id || null
 }
 
 // ============ CONTRACTS ============
@@ -398,6 +405,56 @@ export async function fetchAlerts(): Promise<AlertRow[]> {
   return data || []
 }
 
+export async function fetchAlertsWithRelations() {
+  const companyId = await getCompanyId()
+  if (!companyId) return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('alerts')
+    .select(`
+      *,
+      contracts(title),
+      counterparts(name),
+      employees(full_name),
+      bandi(title),
+      milestones(title),
+      invoices(invoice_number),
+      handled_by_user:users!handled_by(full_name),
+      escalated_to_user:users!escalated_to(full_name)
+    `)
+    .eq('company_id', companyId)
+    .neq('status', 'dismissed')
+    .order('trigger_date', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching alerts with relations:', error)
+    return []
+  }
+
+  // Map nullable relation fields to non-null strings to match AlertWithRelations
+  const mapped = (data || []).map(a => ({
+    ...a,
+    contracts: a.contracts ? { title: a.contracts.title ?? '' } : null,
+    counterparts: a.counterparts ? { name: a.counterparts.name ?? '' } : null,
+    employees: a.employees ? { full_name: a.employees.full_name ?? '' } : null,
+    bandi: a.bandi ? { title: a.bandi.title ?? '' } : null,
+    milestones: a.milestones ? { title: a.milestones.title ?? '' } : null,
+    invoices: a.invoices ? { invoice_number: a.invoices.invoice_number ?? '' } : null,
+    handled_by_user: a.handled_by_user ? { full_name: a.handled_by_user.full_name ?? '' } : null,
+    escalated_to_user: a.escalated_to_user ? { full_name: a.escalated_to_user.full_name ?? '' } : null,
+  }))
+
+  // Sort by priority then trigger_date
+  const priorityOrder = ['critical', 'high', 'medium', 'low']
+  return mapped.sort((a, b) => {
+    const pA = priorityOrder.indexOf(a.priority as string)
+    const pB = priorityOrder.indexOf(b.priority as string)
+    if (pA !== pB) return pA - pB
+    return new Date(a.trigger_date).getTime() - new Date(b.trigger_date).getTime()
+  })
+}
+
 // ============ DASHBOARD ============
 
 export async function fetchDashboardData() {
@@ -457,9 +514,28 @@ export async function fetchDashboardData() {
     .eq('company_id', companyId)
     .in('status', ['pending', 'escalated'])
 
+  // Generate placeholder month labels for trend data
+  const now = new Date()
+  const contractTrendData = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1)
+    return { month: d.toLocaleDateString('it-IT', { month: 'short' }), contratti: 0, valore: 0 }
+  })
+
+  const riskDistribution = [
+    { name: 'Basso', value: 0, color: '#10b981' },
+    { name: 'Medio', value: 0, color: '#f59e0b' },
+    { name: 'Alto', value: 0, color: '#ef4444' },
+  ]
+
+  const expiryByMonth = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+    return { month: d.toLocaleDateString('it-IT', { month: 'short' }), count: 0 }
+  })
+
   return {
     contracts: contractsData || [],
     alerts: alertsData || [],
+    loading: false,
     kpis: {
       activeContracts: activeCount || 0,
       expiringIn30Days: expiringCount || 0,
@@ -469,6 +545,9 @@ export async function fetchDashboardData() {
       toCollect: 0,
       toPay: 0,
     },
+    contractTrendData,
+    riskDistribution,
+    expiryByMonth,
   }
 }
 
@@ -480,28 +559,129 @@ export async function fetchAnalytics() {
 
   const supabase = await createClient()
 
-  // Fetch all contracts
   const { data: contracts } = await supabase
     .from('contracts')
     .select('*')
     .eq('company_id', companyId)
 
-  // Fetch all counterparts
   const { data: counterparts } = await supabase
     .from('counterparts')
     .select('*')
     .eq('company_id', companyId)
 
-  // Fetch all alerts
   const { data: alerts } = await supabase
     .from('alerts')
     .select('*')
     .eq('company_id', companyId)
 
+  const allContracts = contracts || []
+  const allCounterparts = counterparts || []
+  const allAlerts = alerts || []
+
+  // KPIs
+  const activeContracts = allContracts.filter(c => c.status === 'active')
+  const totalValue = activeContracts.reduce((sum, c) => sum + (c.value || 0), 0)
+  const thirtyDaysFromNow = new Date()
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+  const upcomingExpiries = activeContracts.filter(c =>
+    c.end_date && new Date(c.end_date) <= thirtyDaysFromNow
+  ).length
+
+  const kpis = {
+    totalValue,
+    totalContracts: activeContracts.length,
+    renewalRate: 0,
+    upcomingExpiries,
+  }
+
+  // Monthly contract value (placeholder)
+  const now = new Date()
+  const monthlyContractValue = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1)
+    return { month: d.toLocaleDateString('it-IT', { month: 'short' }), valore: 0, contratti: 0 }
+  })
+
+  // Contracts by type
+  const typeCount: Record<string, number> = {}
+  activeContracts.forEach(c => {
+    const type = c.contract_type || 'other'
+    typeCount[type] = (typeCount[type] || 0) + 1
+  })
+  const typeColors: Record<string, string> = {
+    service_supply: '#3dc1c3',
+    goods_supply: '#0d6f7f',
+    framework: '#10b981',
+    nda: '#f59e0b',
+    other: '#8b5cf6',
+  }
+  const contractsByType = Object.entries(typeCount).map(([name, value]) => ({
+    name: name.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()),
+    value,
+    color: typeColors[name] || typeColors['other'],
+  }))
+
+  // Risk trend (placeholder)
+  const riskTrend = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
+    return { month: d.toLocaleDateString('it-IT', { month: 'short' }), basso: 0, medio: 0, alto: 0 }
+  })
+
+  // Counterpart distribution
+  const counterpartTypes: Record<string, number> = {}
+  allCounterparts.forEach(c => {
+    const type = c.type || 'other'
+    counterpartTypes[type] = (counterpartTypes[type] || 0) + 1
+  })
+  const counterpartColors: Record<string, string> = {
+    supplier: '#3dc1c3',
+    client: '#0d6f7f',
+    partner: '#10b981',
+    other: '#f59e0b',
+  }
+  const counterpartDistribution = Object.entries(counterpartTypes).map(([name, value]) => ({
+    name: name.replace(/^\w/, c => c.toUpperCase()),
+    value,
+    color: counterpartColors[name] || counterpartColors['other'],
+  }))
+
+  // Renewal forecast (placeholder)
+  const renewalForecast = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+    return { month: d.toLocaleDateString('it-IT', { month: 'short' }), rinnovi: 0, nuovi: 0 }
+  })
+
+  // Alerts by priority
+  const priorityCount: Record<string, number> = {}
+  allAlerts.forEach(a => {
+    const priority = a.priority || 'low'
+    priorityCount[priority] = (priorityCount[priority] || 0) + 1
+  })
+  const priorityColors: Record<string, string> = {
+    critical: '#ef4444',
+    high: '#f59e0b',
+    medium: '#3dc1c3',
+    low: '#10b981',
+  }
+  const priorityLabels: Record<string, string> = {
+    critical: 'Critico',
+    high: 'Alto',
+    medium: 'Medio',
+    low: 'Basso',
+  }
+  const alertsByPriority = Object.entries(priorityCount).map(([key, value]) => ({
+    name: priorityLabels[key] || key,
+    value,
+    color: priorityColors[key] || priorityColors['low'],
+  }))
+
   return {
-    contracts: contracts || [],
-    counterparts: counterparts || [],
-    alerts: alerts || [],
+    kpis,
+    monthlyContractValue,
+    contractsByType,
+    riskTrend,
+    counterpartDistribution,
+    renewalForecast,
+    alertsByPriority,
   }
 }
 
