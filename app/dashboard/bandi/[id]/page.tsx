@@ -34,15 +34,47 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 import {
-  getBando,
   formatCurrency,
   formatDate,
   daysUntil,
-  type Bando,
-  type ParticipationStatus,
 } from "@/lib/mock-data"
 import { sendChatMessageAction } from "@/lib/actions/chat"
+
+type BandoSource = "anac" | "ted_europa" | "invitalia" | "mimit" | "regione_lombardia" | "regione_lazio" | "regione_piemonte" | "consip" | "camera_commercio" | "inps" | "other"
+type ParticipationStatus = "new" | "saved" | "evaluating" | "participating" | "submitted" | "won" | "lost" | "withdrawn"
+
+interface Bando {
+  id: string
+  source: BandoSource
+  source_label?: string
+  source_url: string
+  title: string
+  authority_name: string
+  description?: string
+  base_value: number
+  deadline: string
+  publication_date?: string
+  category?: string
+  match_score: number
+  match_explanation?: string
+  score_sector: number
+  score_size: number
+  score_geo: number
+  score_requirements: number
+  score_feasibility: number
+  participation_status: ParticipationStatus
+  cpv_codes: string[]
+  requirements?: string[]
+  gap_satisfied?: string[]
+  gap_missing?: string[]
+  internal_notes?: string
+  subappalto_allowed?: boolean
+  subappalto_max_pct?: number
+  rti_allowed?: boolean
+}
 
 type BandoTabId = "dettaglio" | "match" | "gap" | "checklist" | "lotti" | "competitor"
 
@@ -105,6 +137,8 @@ const mockCompetitors = [
 export default function BandoDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
+  const supabase = createClient()
   const [bando, setBando] = useState<Bando | null>(null)
   const [activeTab, setActiveTab] = useState<BandoTabId>("dettaglio")
   const [participationStatus, setParticipationStatus] = useState<ParticipationStatus>("new")
@@ -114,6 +148,7 @@ export default function BandoDetailPage() {
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false)
   const [aiExplanationError, setAiExplanationError] = useState<string | null>(null)
   const [aiCopied, setAiCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const handleExplainMatch = async () => {
     if (!bando || aiExplanationLoading) return
@@ -142,12 +177,76 @@ export default function BandoDetailPage() {
   }
 
   useEffect(() => {
-    const bandoData = getBando(params.id as string)
-    if (bandoData) {
-      setBando(bandoData)
-      setParticipationStatus(bandoData.participation_status)
+    if (!user) return
+
+    const fetchBando = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('bandi')
+          .select('*')
+          .eq('id', params.id as string)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (error) throw error
+
+        if (data) {
+          const gapAnalysis = data.gap_analysis_json as { satisfied?: string[]; missing?: string[] } | null
+          const requirements = data.requirements_json as { items?: string[] } | null
+
+          const bandoData: Bando = {
+            id: data.id,
+            source: data.source as BandoSource,
+            source_label: data.source_label,
+            source_url: data.source_url,
+            title: data.title,
+            authority_name: data.authority_name,
+            description: data.description,
+            base_value: data.base_value,
+            deadline: data.deadline,
+            publication_date: data.publication_date,
+            category: data.contract_category,
+            match_score: data.match_score,
+            match_explanation: data.match_explanation,
+            score_sector: data.score_sector,
+            score_size: data.score_size,
+            score_geo: data.score_geo,
+            score_requirements: data.score_requirements,
+            score_feasibility: data.score_feasibility,
+            participation_status: data.participation_status as ParticipationStatus,
+            cpv_codes: data.cpv_codes || [],
+            requirements: requirements?.items || [],
+            gap_satisfied: gapAnalysis?.satisfied || [],
+            gap_missing: gapAnalysis?.missing || [],
+            internal_notes: data.internal_notes,
+            subappalto_allowed: data.subappalto_allowed,
+            subappalto_max_pct: data.subappalto_max_pct,
+            rti_allowed: data.rti_allowed,
+          }
+          setBando(bandoData)
+          setParticipationStatus(bandoData.participation_status)
+          setInternalNotes(bandoData.internal_notes || "")
+        }
+      } catch (error) {
+        console.error('Error fetching bando:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [params.id])
+
+    fetchBando()
+  }, [user, params.id, supabase])
 
   const handleStatusChange = (status: ParticipationStatus) => {
     setParticipationStatus(status)
@@ -159,7 +258,7 @@ export default function BandoDetailPage() {
     // Auto-save with debounce
   }
 
-  if (!bando) {
+  if (loading || !bando) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
@@ -205,7 +304,7 @@ export default function BandoDetailPage() {
                     bando.source === "mimit" ? "bg-amber-500/10 text-amber-400" :
                     "bg-muted/30 text-muted-foreground"
                   }`}>
-                    {sourceLabels[bando.source] || bando.source}
+                    {bando.source_label || sourceLabels[bando.source] || bando.source}
                   </span>
                   {days > 0 ? (
                     <span className={`flex items-center gap-1 text-xs ${
@@ -223,7 +322,7 @@ export default function BandoDetailPage() {
                 </div>
               </div>
               <a
-                href="#"
+                href={bando.source_url || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-primary hover:underline"

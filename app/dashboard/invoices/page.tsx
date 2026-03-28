@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Status filter options
 const STATUS_OPTIONS = [
@@ -586,7 +587,22 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/10">
-              {filteredInvoices.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-32" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-28" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-24" /></td>
+                    <td className="px-5 py-4 text-right"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-12" /></td>
+                    <td className="px-5 py-4 text-right"><Skeleton className="h-5 w-24 ml-auto" /></td>
+                    <td className="px-5 py-4 text-center"><Skeleton className="h-6 w-20 rounded-full mx-auto" /></td>
+                    <td className="px-5 py-4 text-center"><Skeleton className="h-8 w-8 rounded-md mx-auto" /></td>
+                  </tr>
+                ))
+              ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-12 text-center">
                     <FileText className="size-12 text-muted-foreground/50 mx-auto mb-4" />

@@ -47,7 +47,7 @@ export default function BandoRadarDocsPage() {
         {/* Company profile example */}
         <div className="glass-card rounded-xl p-6 border border-primary/20 bg-primary/5">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs font-mono text-primary px-2 py-1 rounded bg-primary/10">ESEMPIO PROFILO VETTORIALE</span>
+            <span className="text-xs font-mono text-primary px-2 py-1 rounded bg-primary/10">ESEMPIO PROFILO AZIENDA</span>
           </div>
           <code className="text-sm text-foreground leading-relaxed block">
             "Azienda ICT Milano, sviluppo software, 8 dipendenti, fatturato ~280k, 

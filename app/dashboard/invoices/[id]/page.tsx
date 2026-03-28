@@ -38,11 +38,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  getInvoice,
-  markInvoiceAsPaid,
-  deleteInvoice,
-  getCounterpart,
-  getContract,
   formatCurrency,
   formatDate,
   daysUntil,
@@ -55,47 +50,127 @@ import {
 } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/hooks/use-user"
 
 export default function InvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useUser()
+  const supabase = createClient()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
   const [contract, setContract] = useState<Contract | null>(null)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const invoiceData = getInvoice(params.id as string)
-    if (invoiceData) {
-      setInvoice(invoiceData)
-      if (invoiceData.counterpart_id) {
-        setCounterpart(getCounterpart(invoiceData.counterpart_id) || null)
-      }
-      if (invoiceData.contract_id) {
-        setContract(getContract(invoiceData.contract_id) || null)
+    if (!user) return
+
+    const fetchData = async () => {
+      try {
+        // Get user's company
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) {
+          setLoading(false)
+          return
+        }
+
+        // Fetch invoice
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('id', params.id)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (invoiceError || !invoiceData) {
+          setLoading(false)
+          return
+        }
+
+        setInvoice(invoiceData)
+
+        // Fetch counterpart if exists
+        if (invoiceData.counterpart_id) {
+          const { data: counterpartData } = await supabase
+            .from('counterparts')
+            .select('*')
+            .eq('id', invoiceData.counterpart_id)
+            .single()
+          setCounterpart(counterpartData || null)
+        }
+
+        // Fetch contract if exists
+        if (invoiceData.contract_id) {
+          const { data: contractData } = await supabase
+            .from('contracts')
+            .select('*')
+            .eq('id', invoiceData.contract_id)
+            .single()
+          setContract(contractData || null)
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
       }
     }
-  }, [params.id])
 
-  const handleMarkAsPaid = () => {
+    fetchData()
+  }, [user, supabase, params.id])
+
+  const handleMarkAsPaid = async () => {
     if (!invoice) return
 
-    const updated = markInvoiceAsPaid(invoice.id, paymentDate)
-    if (updated) {
-      toast.success("Fattura segnata come pagata")
-      setIsPayModalOpen(false)
-      setInvoice(updated)
+    try {
+      const { data: updated, error } = await supabase
+        .from('invoices')
+        .update({
+          payment_status: 'paid',
+          payment_date: paymentDate,
+        })
+        .eq('id', invoice.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (updated) {
+        toast.success("Fattura segnata come pagata")
+        setIsPayModalOpen(false)
+        setInvoice(updated)
+      }
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error)
+      toast.error("Errore durante il salvataggio")
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!invoice) return
 
-    deleteInvoice(invoice.id)
-    toast.success("Fattura eliminata")
-    router.push("/dashboard/invoices")
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id)
+
+      if (error) throw error
+
+      toast.success("Fattura eliminata")
+      router.push("/dashboard/invoices")
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      toast.error("Errore durante l'eliminazione")
+    }
   }
 
   const handleDownload = () => {

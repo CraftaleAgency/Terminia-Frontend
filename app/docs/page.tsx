@@ -20,7 +20,7 @@ export default function DocsPage() {
       </div>
 
       {/* Quick links grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+      <div className="grid md:grid-cols-2 gap-6 mb-16">
         <Link
           href="/docs/bandoradar"
           className="group glass-card rounded-2xl p-6 border border-border/40 hover:border-primary/40 hover:glow-teal-sm transition-all duration-300"
@@ -58,25 +58,6 @@ export default function DocsPage() {
             <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
           </span>
         </Link>
-
-        <Link
-          href="/docs/database"
-          className="group glass-card rounded-2xl p-6 border border-border/40 hover:border-primary/40 hover:glow-teal-sm transition-all duration-300"
-        >
-          <div className="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
-            <Database className="size-7" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
-            Schema Database
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-            Struttura completa del database PostgreSQL con tutti i tipi enum, tabelle e relazioni.
-          </p>
-          <span className="flex items-center gap-1 text-sm text-primary font-medium">
-            Vedi lo schema
-            <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </Link>
       </div>
 
       {/* Architecture section */}
@@ -95,7 +76,7 @@ export default function DocsPage() {
           {[
             { icon: Cloud, label: "Frontend", desc: "Next.js 16, React 19, Tailwind CSS, Framer Motion" },
             { icon: Database, label: "Backend", desc: "Supabase Edge Functions, PostgreSQL, RLS" },
-            { icon: Brain, label: "AI Engine", desc: "Qwen 3.5 per estrazione, embeddings semantici" },
+            { icon: Brain, label: "AI Engine", desc: "AI proprietaria per estrazione e analisi intelligente" },
             { icon: Lock, label: "Auth", desc: "Supabase Auth con SSO aziendale e MFA" },
             { icon: FileText, label: "Storage", desc: "Supabase Storage per PDF e documenti" },
             { icon: Zap, label: "Realtime", desc: "Supabase Realtime per alert e notifiche" },
@@ -141,23 +122,24 @@ export default function DocsPage() {
         </div>
       </div>
 
-      {/* API section teaser */}
+      {/* Integrations section teaser */}
       <div className="glass-card rounded-2xl p-8 border border-primary/20 bg-primary/5">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
             <Zap className="size-6" />
           </div>
           <div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">API Access (Enterprise)</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-2">Integrazioni Esterne</h3>
             <p className="text-muted-foreground mb-4">
-              L'accesso API e disponibile per i piani Enterprise. Permette l'integrazione 
-              con i tuoi sistemi esistenti per automazione completa del workflow contrattuale.
+              TerminIA si integra con le principali fonti dati pubbliche italiane ed europee
+              per offrire una visione completa e sempre aggiornata delle opportunita di gara
+              e della affidabilita delle controparti.
             </p>
             <Link
-              href="/docs/api"
+              href="/docs/integrazioni"
               className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
             >
-              Scopri le API
+              Vedi le integrazioni
               <ArrowRight className="size-4" />
             </Link>
           </div>

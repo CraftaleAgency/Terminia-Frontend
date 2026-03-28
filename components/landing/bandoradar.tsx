@@ -56,16 +56,16 @@ export function BandoRadar() {
 
             <ScrollReveal delay={0.2}>
               <h2 className="text-balance text-3xl sm:text-4xl font-semibold text-foreground mb-4 leading-tight">
-                Scopri i bandi pubblici{" "}
-                <span className="text-gradient">su misura per la tua azienda</span>
+                Trova bandi pubblici{" "}
+                <span className="text-gradient">che i concorrenti non vedono</span>
               </h2>
             </ScrollReveal>
 
             <ScrollReveal delay={0.3}>
               <p className="text-muted-foreground leading-relaxed mb-6 text-base md:text-lg">
-                L&apos;agente AI costruisce automaticamente il profilo della tua azienda dai contratti caricati
-                — settore, fatturato, area geografica, certificazioni — e lo usa per trovare ogni giorno
-                i bandi pubblici più compatibili.
+                BandoRadar scansiona 24/7 ANAC, TED Europa, Invitalia, MIMIT e tutti i portali regionali.
+                L&apos;AI costruisce il tuo profilo aziendale reale dai contratti e ti segnala solo bandi compatibili all&apos;80%+.
+                <span className="text-primary font-medium"> Zero tempo perso su bandi inutilizzabili.</span>
               </p>
             </ScrollReveal>
 
@@ -88,10 +88,11 @@ export function BandoRadar() {
             <ScrollReveal delay={0.5}>
               <ul className="space-y-3">
                 {[
-                  "Match score 0–100 basato sul tuo profilo reale",
-                  "Gap analysis automatica dei requisiti mancanti",
-                  "Checklist documenti con stima dei tempi",
-                  "Alert scadenza sui bandi salvati",
+                  "Unico in Italia: profilo aziendale dai contratti reali, niente questionari manuali",
+                  "Match score 0–100 basato su settore reale, fatturato documentato, certificazioni effettive",
+                  "Gap analysis automatica: vedi subito cosa ti manca per partecipare",
+                  "Checklist documenti con stima tempi realistica per ogni bando",
+                  "Alert scadenza sui bandi salvati — mai più opportunità perse per 24 ore",
                 ].map((benefit) => (
                   <li key={benefit} className="flex items-start gap-2.5">
                     <CheckCircle2 className="size-4 text-primary flex-shrink-0 mt-0.5" aria-hidden />
