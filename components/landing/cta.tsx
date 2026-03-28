@@ -9,8 +9,11 @@ import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimm
 export function Cta() {
   return (
     <section className="py-32 px-6 relative">
-      <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] rounded-full bg-[radial-gradient(ellipse,oklch(0.72_0.18_220/0.12)_0%,transparent_70%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-px h-32 bg-gradient-to-b from-primary/50 to-transparent" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-full bg-[radial-gradient(ellipse,oklch(0.68_0.12_195/0.1)_0%,oklch(0.72_0.14_180/0.05)_50%,transparent_70%)]" />
+        <div className="absolute -left-20 top-1/2 w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,oklch(0.65_0.10_195/0.06)_0%,transparent_60%)]" />
+        <div className="absolute -right-20 top-1/2 w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_180/0.05)_0%,transparent_60%)]" />
       </div>
 
       <div className="mx-auto max-w-3xl text-center relative z-10">

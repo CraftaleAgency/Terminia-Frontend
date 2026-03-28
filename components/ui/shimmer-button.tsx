@@ -46,22 +46,16 @@ export function BorderMagicButton({ children, size = "md", className, ...props }
 }
 
 /**
- * Secondary — shimmer sweep button (no nested <button>)
+ * Secondary — subtle shimmer sweep button (single button element, no nesting)
  */
 export function SecondaryShimmerButton({ children, size = "md", className, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-full border border-border font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
-        // shimmer via inline style so it works SSR without CSS variable issues
+        "inline-flex items-center justify-center rounded-full border border-border bg-secondary font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background",
         sizeMap[size],
         className
       )}
-      style={{
-        background: "linear-gradient(110deg, var(--secondary) 0%, var(--secondary) 40%, var(--muted) 50%, var(--secondary) 60%, var(--secondary) 100%)",
-        backgroundSize: "250% 100%",
-        animation: "shimmerMove 2.5s linear infinite",
-      }}
       {...props}
     >
       {children}

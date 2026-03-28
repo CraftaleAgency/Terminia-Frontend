@@ -144,7 +144,7 @@ function FeatureCard({
     <motion.div
       whileHover={{ scale: 1.02, y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`glass-card rounded-3xl p-8 border border-border/20 group hover:glass-card-hover transition-all duration-300 flex flex-col gap-5 h-full ${
+      className={`glass-card rounded-3xl p-8 border border-border/20 group hover:glass-card-hover hover:glow-teal-sm transition-all duration-300 flex flex-col gap-5 h-full ${
         isLarge ? "min-h-[200px]" : ""
       }`}
     >
