@@ -19,16 +19,17 @@ export function Cta() {
       <div className="mx-auto max-w-3xl text-center relative z-10">
         <ScrollReveal delay={0.1}>
           <h2 className="text-balance text-3xl sm:text-4xl lg:text-4xl font-semibold text-foreground mb-4 leading-tight">
-            Smetti di perdere fatturato{" "}
+            In 14 giorni scoprirai{" "}
             <br className="hidden sm:block" />
-            <span className="text-gradient">per contratti non gestiti</span>
+            <span className="text-gradient">contratti che non sapevi di avere</span>
           </h2>
         </ScrollReveal>
 
         <ScrollReveal delay={0.2}>
           <p className="text-muted-foreground leading-relaxed mb-8 text-base md:text-lg">
-            Inizia con 14 giorni gratuiti. Nessuna carta di credito, nessun vincolo.
-            Il tuo primo contratto analizzato in meno di 2 minuti.
+            Carica i tuoi contratti oggi e entro venerdì avrai: scadenze mappate per i prossimi 6 mesi,
+            3 bandi compatibili da valutare, rischi clausole penali identificati, cashflow proiettato automaticamente.
+            <span className="text-foreground font-medium"> Nessuna carta di credito. Dati al sicuro in Italia.</span>
           </p>
         </ScrollReveal>
 
@@ -36,13 +37,13 @@ export function Cta() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/auth/register">
               <BorderMagicButton size="md" asChild>
-                Inizia Gratis — 14 giorni
+                Inizia la prova gratuita — 14 giorni
                 <ArrowRight className="size-4" aria-hidden />
               </BorderMagicButton>
             </Link>
             <Link href="#">
               <SecondaryShimmerButton size="md" asChild>
-                Prenota una demo
+                Prenota demo 15 minuti
               </SecondaryShimmerButton>
             </Link>
           </div>
@@ -50,7 +51,7 @@ export function Cta() {
 
         <ScrollReveal delay={0.4}>
           <p className="mt-6 text-sm text-muted-foreground">
-            Costruito in Italia · GDPR compliant · Dati ospitati in EU
+            GDPR nativo · AI proprietaria (i tuoi dati non trainano modelli terzi) · Hosting in Italia
           </p>
         </ScrollReveal>
       </div>

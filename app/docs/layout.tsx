@@ -77,8 +77,8 @@ export default function DocsLayout({
                 <h3 className="font-medium text-foreground mb-3">Tecnico</h3>
                 <ul className="space-y-2">
                   <li>
-                    <Link href="/docs/database" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      Schema Database
+                    <Link href="/docs/integrazioni" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      Integrazioni
                     </Link>
                   </li>
                 </ul>

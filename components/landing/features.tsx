@@ -23,7 +23,7 @@ const features = [
   {
     icon: Bell,
     title: "Alert Preventivi",
-    description: "Ricevi notifiche via email e Slack 90, 60 e 30 giorni prima di ogni evento critico.",
+    description: "Ricevi notifiche via email e Telegram 90, 60 e 30 giorni prima di ogni evento critico.",
     size: "small",
   },
   {
