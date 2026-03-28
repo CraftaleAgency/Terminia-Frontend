@@ -579,19 +579,25 @@ export default function OnboardingPage() {
                       <div className="p-3 rounded-lg bg-background/50">
                         <p className="text-muted-foreground text-xs mb-1">Rischio</p>
                         <p className="text-foreground font-medium">
-                          {analysisResult.data.risk_score.label} ({analysisResult.data.risk_score.score}/100)
+                          {analysisResult.data.risk.risk_label} ({analysisResult.data.risk.risk_score}/100)
                         </p>
                       </div>
                     </div>
-                    {analysisResult.data.extraction.parties.length > 0 && (
+                    {analysisResult.data.classification.parties && (
                       <div className="p-3 rounded-lg bg-background/50 text-sm">
                         <p className="text-muted-foreground text-xs mb-1">Parti</p>
-                        {analysisResult.data.extraction.parties.map((party, i) => (
-                          <p key={i} className="text-foreground">
-                            <span className="font-medium">{party.name}</span>
-                            <span className="text-muted-foreground"> — {party.role}</span>
+                        {analysisResult.data.classification.parties.company && (
+                          <p className="text-foreground">
+                            <span className="font-medium">{analysisResult.data.classification.parties.company}</span>
+                            <span className="text-muted-foreground"> — committente</span>
                           </p>
-                        ))}
+                        )}
+                        {analysisResult.data.classification.parties.counterpart?.name && (
+                          <p className="text-foreground">
+                            <span className="font-medium">{analysisResult.data.classification.parties.counterpart.name}</span>
+                            <span className="text-muted-foreground"> — {analysisResult.data.classification.parties.counterpart.role || "controparte"}</span>
+                          </p>
+                        )}
                       </div>
                     )}
                     <button

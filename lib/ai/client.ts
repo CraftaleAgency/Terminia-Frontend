@@ -15,31 +15,70 @@ export interface AnalyzeRequest {
 export interface AnalyzeResponse {
   classification: {
     contract_type: string
-    contract_subtype?: string
     counterpart_type?: string
-    language: string
+    language?: string
     confidence: number
+    parties?: {
+      company?: string
+      counterpart?: {
+        name?: string
+        vat?: string
+        cf?: string
+        role?: string
+      }
+    }
+    summary_it?: string
   }
   extraction: {
-    parties: Array<{ name: string; role: string; vat_number?: string; fiscal_code?: string }>
-    start_date?: string
-    end_date?: string
-    total_value?: number
-    currency?: string
-    renewal_type?: string
-    auto_renewable?: boolean
-    clauses: Array<{ title: string; content: string; risk_level: string; category: string }>
-    obligations: Array<{ description: string; due_date?: string; responsible_party: string }>
-    milestones: Array<{ description: string; date?: string; amount?: number }>
+    dates?: {
+      start_date?: string
+      end_date?: string
+      signing_date?: string
+      notice_period_days?: number
+    }
+    value?: {
+      total_value?: number
+      currency?: string
+      payment_terms_days?: number
+      payment_method?: string
+    }
+    renewal?: {
+      auto_renewal?: boolean
+      renewal_notice_days?: number
+      max_renewals?: number
+      renewal_duration_months?: number
+    }
+    clauses: Array<{
+      clause_type?: string
+      title?: string
+      summary_it?: string
+      risk_level?: string
+      risk_reason?: string
+      original_text?: string
+    }>
+    obligations: Array<{
+      description: string
+      responsible_party?: string
+      deadline?: string
+      recurring?: boolean
+      frequency?: string
+    }>
+    milestones: Array<{
+      title?: string
+      due_date?: string
+      amount?: number
+      description?: string
+    }>
   }
-  risk_score: {
-    score: number
-    label: string
-    dimensions: Record<string, number>
-    details: Array<{ category: string; finding: string; severity: string }>
+  risk: {
+    risk_score: number
+    risk_label?: string
+    dimensions?: Record<string, { score: number; note: string }>
+    top_risks: Array<{ title: string; description: string; severity: string }>
+    recommendations_it: string[]
   }
-  contract_id?: string
   counterpart_id?: string
+  warnings?: string[]
 }
 
 export interface OSINTRequest {
@@ -50,17 +89,49 @@ export interface OSINTRequest {
 }
 
 export interface OSINTResponse {
-  vat: { valid: boolean | null; name?: string; address?: string; error?: string }
-  fiscal_code: { valid: boolean; checksum_ok: boolean; match?: boolean; details?: string } | null
-  anac: { checked: boolean; annotations: boolean; details?: string; error?: string }
-  reliability_score: number
-  reliability_label: string
-  dimensions: {
-    legal: number
-    contributory: number
-    reputation: number
-    solidity: number
-    consistency: number
+  vies: {
+    valid: boolean | null
+    country_code?: string
+    vat_number?: string
+    name?: string
+    address?: string
+    request_date?: string
+    error?: string | null
+  } | null
+  fiscal_code: {
+    valid: boolean
+    checksum_ok: boolean
+    extracted?: {
+      surname_code: string
+      name_code: string
+      birth_year: string
+      birth_month: number | null
+      birth_day: number
+      gender: string
+      municipality_code: string
+    } | null
+    errors: string[]
+  } | null
+  anac: {
+    checked: boolean
+    annotations_found: boolean
+    annotations: Array<{
+      type: string
+      date: string | null
+      description: string
+      reference: string
+    }>
+    error?: string | null
+  } | null
+  reliability: {
+    score: number
+    dimensions: {
+      legal: number
+      contributory: number
+      reputation: number
+      solidity: number
+      consistency: number
+    }
   }
 }
 

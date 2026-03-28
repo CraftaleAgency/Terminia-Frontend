@@ -111,15 +111,15 @@ export default function CounterpartDetailPage() {
         const d = result.data
         setCounterpart(prev => prev ? {
           ...prev,
-          reliability_score: d.reliability_score,
-          reliability_label: d.reliability_label as typeof prev.reliability_label,
-          score_legal: d.dimensions.legal,
-          score_contributory: d.dimensions.contributory,
-          score_reputation: d.dimensions.reputation,
-          score_solidity: d.dimensions.solidity,
-          score_consistency: d.dimensions.consistency,
-          vat_verified: d.vat.valid === true,
-          has_anac_annotations: d.anac.annotations,
+          reliability_score: d.reliability.score,
+          reliability_label: (d.reliability.score >= 80 ? 'excellent' : d.reliability.score >= 60 ? 'good' : d.reliability.score >= 40 ? 'warning' : 'risk') as typeof prev.reliability_label,
+          score_legal: d.reliability.dimensions.legal,
+          score_contributory: d.reliability.dimensions.contributory,
+          score_reputation: d.reliability.dimensions.reputation,
+          score_solidity: d.reliability.dimensions.solidity,
+          score_consistency: d.reliability.dimensions.consistency,
+          vat_verified: d.vies?.valid === true,
+          has_anac_annotations: d.anac?.annotations_found ?? false,
         } : prev)
         toast.success("Verifica aggiornata con successo")
         setLastVerified(new Date().toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }))

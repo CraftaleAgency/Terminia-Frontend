@@ -55,10 +55,10 @@ export default function NewCounterpartPage() {
     try {
       const result = await verifyCounterpartAction({ vatNumber: vat })
       if (result.success && result.data) {
-        const isValid = result.data.vat.valid === true
+        const isValid = result.data.vies?.valid === true
         setVatStatus(isValid ? "valid" : "invalid")
-        if (isValid && result.data.vat.name && !formData.name) {
-          setFormData(prev => ({ ...prev, name: result.data!.vat.name! }))
+        if (isValid && result.data.vies?.name && !formData.name) {
+          setFormData(prev => ({ ...prev, name: result.data!.vies!.name! }))
         }
       } else {
         setVatStatus("invalid")

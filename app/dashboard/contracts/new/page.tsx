@@ -247,10 +247,7 @@ function NewContractContent() {
       setAiConfidence(confidence)
 
       // Map extracted data to form fields
-      const parties = analysis.extraction.parties ?? []
-      const counterparty = parties.find(
-        (p) => p.role !== "client" && p.role !== "committente" && p.role !== "buyer",
-      )
+      const counterparty = analysis.classification.parties?.counterpart
       const contractType = mapContractType(analysis.classification.contract_type)
       const isEmployee = analysis.classification.counterpart_type === "employee"
 
@@ -261,11 +258,11 @@ function NewContractContent() {
           : CONTRACT_TYPE_LABELS[contractType] || analysis.classification.contract_type,
         contract_type: contractType,
         actor_type: isEmployee ? "employee" as ActorType : "counterpart" as ActorType,
-        value: analysis.extraction.total_value?.toString() || "",
+        value: analysis.extraction.value?.total_value?.toString() || "",
         value_type: "total" as const,
-        start_date: analysis.extraction.start_date || "",
-        end_date: analysis.extraction.end_date || "",
-        auto_renewal: analysis.extraction.auto_renewable || false,
+        start_date: analysis.extraction.dates?.start_date || "",
+        end_date: analysis.extraction.dates?.end_date || "",
+        auto_renewal: analysis.extraction.renewal?.auto_renewal || false,
       }))
 
       if (confidence >= 85) {
@@ -347,13 +344,10 @@ function NewContractContent() {
     }, 150)
 
     try {
-      const parties = analysisResult?.extraction.parties ?? []
-      const counterparty = parties.find(
-        (p) => p.role !== "client" && p.role !== "committente" && p.role !== "buyer",
-      )
+      const counterparty = analysisResult?.classification.parties?.counterpart
 
       const result = await verifyCounterpartAction({
-        vatNumber: counterparty?.vat_number,
+        vatNumber: counterparty?.vat,
         companyName: counterparty?.name,
       })
 
@@ -362,7 +356,7 @@ function NewContractContent() {
 
       if (result.success && result.data) {
         setOsintResult(result.data)
-        setReliabilityScore(result.data.reliability_score)
+        setReliabilityScore(result.data.reliability.score)
       } else {
         toast.error(result.error || "Verifica OSINT non disponibile")
         setReliabilityScore(null)
@@ -527,9 +521,9 @@ function NewContractContent() {
                   <div className="text-foreground font-medium">
                     {CONTRACT_TYPE_LABELS[formData.contract_type] || formData.contract_type}
                   </div>
-                  {analysisResult?.extraction.parties && analysisResult.extraction.parties.length > 0 && (
+                  {analysisResult?.classification.parties && (
                     <div className="mt-2 text-sm text-muted-foreground">
-                      Parti: {analysisResult.extraction.parties.map(p => p.name).join(", ")}
+                      Parti: {[analysisResult.classification.parties.company, analysisResult.classification.parties.counterpart?.name].filter(Boolean).join(", ")}
                     </div>
                   )}
                 </div>
@@ -615,9 +609,11 @@ function NewContractContent() {
                             {reliabilityScore}/100
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {osintResult?.reliability_label ||
-                              (reliabilityScore >= 80 ? "Eccellente" :
-                               reliabilityScore >= 60 ? "Buono" : "Attenzione")}
+                            {osintResult?.reliability?.score
+                              ? (osintResult.reliability.score >= 80 ? "Eccellente" :
+                                 osintResult.reliability.score >= 60 ? "Buono" : "Attenzione")
+                              : (reliabilityScore && reliabilityScore >= 80 ? "Eccellente" :
+                               reliabilityScore && reliabilityScore >= 60 ? "Buono" : "Attenzione")}
                           </div>
                         </div>
                         <CheckCircle2 className={`size-10 ${
@@ -631,21 +627,21 @@ function NewContractContent() {
                     {/* Verification status */}
                     {osintResult && (
                       <div className="bg-muted/20 rounded-xl p-4 space-y-2 text-sm">
-                        {osintResult.vat.valid !== null && (
+                        {osintResult.vies?.valid !== null && (
                           <div className="flex items-center gap-2">
-                            <span>{osintResult.vat.valid ? "✅" : "❌"}</span>
-                            <span>{osintResult.vat.valid ? "P.IVA valida" : "P.IVA non valida"}</span>
-                            {osintResult.vat.name && (
-                              <span className="text-muted-foreground">— {osintResult.vat.name}</span>
+                            <span>{osintResult.vies?.valid ? "✅" : "❌"}</span>
+                            <span>{osintResult.vies?.valid ? "P.IVA valida" : "P.IVA non valida"}</span>
+                            {osintResult.vies?.name && (
+                              <span className="text-muted-foreground">— {osintResult.vies.name}</span>
                             )}
                           </div>
                         )}
-                        {osintResult.anac.checked && (
+                        {osintResult.anac?.checked && (
                           <div className="flex items-center gap-2">
-                            <span>{osintResult.anac.annotations ? "⚠️" : "✅"}</span>
+                            <span>{osintResult.anac.annotations_found ? "⚠️" : "✅"}</span>
                             <span>
-                              {osintResult.anac.annotations
-                                ? `Annotazione ANAC: ${osintResult.anac.details || "presente"}`
+                              {osintResult.anac.annotations_found
+                                ? `Annotazione ANAC: ${osintResult.anac.annotations?.[0]?.description || "presente"}`
                                 : "Nessuna annotazione ANAC"}
                             </span>
                           </div>
@@ -663,11 +659,11 @@ function NewContractContent() {
                     )}
 
                     {/* Dimension breakdown */}
-                    {osintResult?.dimensions && (
+                    {osintResult?.reliability?.dimensions && (
                       <div className="bg-muted/20 rounded-xl p-4">
                         <div className="text-xs text-muted-foreground mb-3">DETTAGLIO DIMENSIONI</div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          {Object.entries(osintResult.dimensions).map(([key, value]) => (
+                          {Object.entries(osintResult.reliability.dimensions).map(([key, value]) => (
                             <div key={key} className="flex items-center justify-between">
                               <span className="text-muted-foreground capitalize">{key}</span>
                               <div className="flex items-center gap-2">

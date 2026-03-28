@@ -128,13 +128,13 @@ export default function RegisterPage() {
         const filled = new Set<string>()
         const updates: Record<string, string> = {}
 
-        const firstParty = result.data.extraction.parties[0]
-        if (firstParty?.name) {
-          updates.companyName = firstParty.name
+        const companyParty = result.data.classification.parties
+        if (companyParty?.company) {
+          updates.companyName = companyParty.company
           filled.add('companyName')
         }
-        if (firstParty?.vat_number) {
-          updates.vatNumber = firstParty.vat_number.replace(/\D/g, '').slice(0, 11)
+        if (companyParty?.counterpart?.vat) {
+          updates.vatNumber = companyParty.counterpart.vat.replace(/\D/g, '').slice(0, 11)
           filled.add('vatNumber')
         }
 
