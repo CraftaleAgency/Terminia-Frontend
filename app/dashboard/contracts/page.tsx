@@ -15,7 +15,6 @@ import {
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
-import { Skeleton } from "@/components/ui/skeleton"
 
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
@@ -97,6 +96,7 @@ export default function ContractsPage() {
   const supabase = createClient()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "all">("all")
   const [typeFilter, setTypeFilter] = useState<"all" | "commercial" | "hr">("all")
@@ -106,28 +106,46 @@ export default function ContractsPage() {
 
     const fetchContracts = async () => {
       try {
-        const { data: userData } = await supabase
+        setError(null)
+        
+        // Get user's company_id
+        const { data: userData, error: userError } = await supabase
           .from('users')
           .select('company_id')
           .eq('id', user.id)
           .single()
 
-        if (!userData?.company_id) {
+        if (userError) {
+          console.error('Error fetching user data:', userError)
+          setError('Errore nel recupero del profilo utente. Prova a ricaricare la pagina.')
           setLoading(false)
           return
         }
 
-        const { data, error } = await supabase
+        if (!userData?.company_id) {
+          console.log('No company_id found for user')
+          setError('Profilo azienda non trovato. Completa l\'onboarding per continuare.')
+          setLoading(false)
+          return
+        }
+
+        // Fetch contracts with optional relations
+        const { data, error: contractsError } = await supabase
           .from('contracts')
           .select(`
             *,
-            counterparts(name),
-            employees(full_name)
+            counterparts!contracts_counterpart_id_fkey(name),
+            employees!contracts_employee_id_fkey(full_name)
           `)
           .eq('company_id', userData.company_id)
           .order('created_at', { ascending: false })
 
-        if (error) throw error
+        if (contractsError) {
+          console.error('Error fetching contracts:', contractsError)
+          setError(`Errore nel caricamento dei contratti: ${contractsError.message}`)
+          setLoading(false)
+          return
+        }
 
         const formattedContracts = data?.map(c => ({
           ...c,
@@ -137,7 +155,8 @@ export default function ContractsPage() {
 
         setContracts(formattedContracts)
       } catch (error) {
-        console.error('Error fetching contracts:', error)
+        console.error('Error in fetchContracts:', error)
+        setError('Si è verificato un errore imprevisto.')
       } finally {
         setLoading(false)
       }
@@ -315,19 +334,16 @@ export default function ContractsPage() {
         className="glass-card rounded-2xl border border-border/20 overflow-hidden"
       >
         {loading ? (
-          <div className="divide-y divide-border/10">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="px-6 py-4 flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-5 w-64" />
-                  <Skeleton className="h-4 w-40" />
-                </div>
-                <Skeleton className="h-6 w-20 rounded-full" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-8 rounded-md" />
-              </div>
-            ))}
+          <div className="px-6 py-12 text-center">
+            <div className="text-muted-foreground">Caricamento...</div>
+          </div>
+        ) : error ? (
+          <div className="px-6 py-12 text-center">
+            <AlertTriangle className="size-12 text-amber-400 mx-auto mb-4" />
+            <div className="text-foreground font-medium">Errore</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {error}
+            </div>
           </div>
         ) : filteredContracts.length === 0 ? (
           <div className="px-6 py-12 text-center">
