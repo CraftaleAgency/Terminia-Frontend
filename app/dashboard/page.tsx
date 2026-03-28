@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/chart"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Helper functions
 const formatCurrency = (value: number) => {
@@ -283,35 +284,51 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpiCards.map((kpi, index) => {
-          const Icon = kpi.icon
-          return (
-            <motion.div
-              key={kpi.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-              className="glass-card rounded-2xl p-5 border border-border/20 group hover:glow-teal-sm transition-all duration-300"
+        {loading ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <div
+              key={index}
+              className="glass-card rounded-2xl p-5 border border-border/20"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className={`w-10 h-10 rounded-xl bg-muted/30 border border-border/20 flex items-center justify-center ${kpi.color}`}>
-                  <Icon className="size-5" />
+                <Skeleton className="w-10 h-10 rounded-xl" />
+              </div>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-20 mt-2" />
+            </div>
+          ))
+        ) : (
+          kpiCards.map((kpi, index) => {
+            const Icon = kpi.icon
+            return (
+              <motion.div
+                key={kpi.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+                className="glass-card rounded-2xl p-5 border border-border/20 group hover:glow-teal-sm transition-all duration-300"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`w-10 h-10 rounded-xl bg-muted/30 border border-border/20 flex items-center justify-center ${kpi.color}`}>
+                    <Icon className="size-5" />
+                  </div>
                 </div>
-              </div>
-              <div className="text-2xl font-semibold text-foreground mb-1">
-                {kpi.value}
-              </div>
-              <div className="text-sm text-muted-foreground">{kpi.label}</div>
-              <div className={`text-xs mt-2 ${
-                kpi.deltaType === "positive" ? "text-emerald-400" :
-                kpi.deltaType === "warning" ? "text-amber-400" :
-                "text-red-400"
-              }`}>
-                {kpi.delta}
-              </div>
-            </motion.div>
-          )
-        })}
+                <div className="text-2xl font-semibold text-foreground mb-1">
+                  {kpi.value}
+                </div>
+                <div className="text-sm text-muted-foreground">{kpi.label}</div>
+                <div className={`text-xs mt-2 ${
+                  kpi.deltaType === "positive" ? "text-emerald-400" :
+                  kpi.deltaType === "warning" ? "text-amber-400" :
+                  "text-red-400"
+                }`}>
+                  {kpi.delta}
+                </div>
+              </motion.div>
+            )
+          })
+        )}
       </div>
 
       {/* Financial summary */}
