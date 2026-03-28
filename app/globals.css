@@ -135,6 +135,11 @@
   to { background-position: -200% 0; }
 }
 
+@keyframes shimmerMove {
+  from { background-position: 200% center; }
+  to { background-position: -200% center; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

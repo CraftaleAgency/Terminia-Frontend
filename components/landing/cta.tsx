@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { ScrollReveal } from "@/components/ui/scroll-reveal"
 import { motion } from "framer-motion"
+import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
 
 export function Cta() {
   return (
@@ -30,23 +31,17 @@ export function Cta() {
 
         <ScrollReveal delay={0.3}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-2 bg-primary text-primary-foreground font-medium px-8 py-4 rounded-2xl hover:bg-primary/90 transition-all duration-200 glow-blue text-lg"
-              >
+            <Link href="/auth/register">
+              <BorderMagicButton size="lg">
                 Inizia Gratis — 14 giorni
-                <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" aria-hidden />
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="#"
-                className="flex items-center gap-2 glass-card text-foreground font-medium px-8 py-4 rounded-2xl hover:glass-card-hover transition-all duration-200 text-lg border border-border/30"
-              >
+                <ArrowRight className="size-5" aria-hidden />
+              </BorderMagicButton>
+            </Link>
+            <Link href="#">
+              <SecondaryShimmerButton size="lg">
                 Prenota una demo
-              </Link>
-            </motion.div>
+              </SecondaryShimmerButton>
+            </Link>
           </div>
         </ScrollReveal>
 
