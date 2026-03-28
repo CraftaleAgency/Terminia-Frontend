@@ -8,22 +8,22 @@ const pains = [
   {
     icon: FolderOpen,
     title: "Contratti dispersi ovunque",
-    description: "PDF in cartelle Drive disorganizzate, allegati via email dimenticati, nessuna visione centralizzata del portfolio.",
+    description: "PDF in cartelle Drive disorganizzate, allegati via email dimenticati. Quando il commercialista chiede i contratti, impieghi 3 giorni a trovarli.",
   },
   {
     icon: Clock,
-    title: "Rinnovi taciti non rilevati",
-    description: "I contratti si rinnovano automaticamente senza che nessuno lo sappia, generando costi non preventivati.",
+    title: "Rinnovi taciti che ti costano caro",
+    description: "I contratti si rinnovano automaticamente in silenzio. In media €15.000 all'anno di costi non preventivati che potevi evitare.",
   },
   {
     icon: AlertTriangle,
-    title: "Penali e clausole rischiose ignorate",
-    description: "Clausole penali, SLA e obblighi contrattuali vengono scoperti solo quando è già troppo tardi.",
+    title: "Penali scoperte troppo tardi",
+    description: "Clausole penali e obblighi critici che emergono solo quando arriva la lettera di diffida. In quel momento è già troppo tardi per negoziare.",
   },
   {
     icon: TrendingDown,
-    title: "Bandi pubblici persi",
-    description: "Opportunità di business come appalti ANAC e bandi europei compatibili con la tua azienda passano inosservati.",
+    title: "Bandi pubblici vinti dai concorrenti",
+    description: "Mentre tu leggi i requisiti a mano, i tuoi concorrenti hanno già presentato la domanda. Bandi da €50.000 a €500.000 che stai perdendo.",
   },
 ]
 
@@ -50,15 +50,15 @@ export function Problem() {
 
           <ScrollReveal delay={0.2}>
             <h2 className="text-balance text-3xl sm:text-4xl lg:text-4xl font-semibold text-foreground mb-4 leading-tight">
-              I costi invisibili di una{" "}
-              <span className="text-gradient">gestione improvvisata</span>
+              Quanto costa alla tua azienda{" "}
+              <span className="text-gradient">un contratto dimenticato?</span>
             </h2>
           </ScrollReveal>
 
           <ScrollReveal delay={0.3}>
             <p className="mx-auto max-w-2xl text-muted-foreground text-base md:text-lg leading-relaxed">
-              Rinnovi non voluti, pagamenti non tracciati, penali non rilevate e opportunità mancate.
-              È il costo invisibile di una gestione contrattuale improvvisata.
+              Milaia di euro in rinnovi taciti, penali da clausole ignorate, bandi persi per scadenza di 24 ore.
+              Non sono casi isolati. È la normalità nella gestione manuale dei contratti.
             </p>
           </ScrollReveal>
         </div>
@@ -96,11 +96,11 @@ export function Problem() {
             className="mt-10 glass-card rounded-2xl p-6 border border-primary/20 text-center glow-blue-sm"
           >
             <p className="text-muted-foreground italic leading-relaxed text-base md:text-lg">
-              &ldquo;Abbiamo scoperto un tacito rinnovo da €18.000 solo tre giorni prima della scadenza.
-              Con ContractOS lo avremmo visto 90 giorni prima.&rdquo;
+              &ldquo;Ci siamo accorti di un rinnovo tacito da €18.000 solo 3 giorni prima della scadenza.
+              Se l'avessimo saputo prima, avremmo negoziato. Con Terminia ora vediamo tutto 90 giorni prima.&rdquo;
             </p>
             <footer className="mt-3 text-sm text-primary font-medium">
-              — Direttore Operativo, PMI manifatturiera italiana
+              — Marco T., CEO PMI manifatturiera, Bologna
             </footer>
           </motion.blockquote>
         </ScrollReveal>

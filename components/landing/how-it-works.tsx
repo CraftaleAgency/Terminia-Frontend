@@ -25,7 +25,7 @@ const steps = [
     icon: BellRing,
     title: "Ricevi alert preventivi",
     description:
-      "Notifiche via email e Slack 90, 60 e 30 giorni prima di ogni scadenza critica. Taciti rinnovi, pagamenti attesi, e nuovi bandi pubblici compatibili.",
+      "Notifiche via email e Telegram 90, 60 e 30 giorni prima di ogni scadenza critica. Taciti rinnovi, pagamenti attesi, e nuovi bandi pubblici compatibili.",
   },
 ]
 
