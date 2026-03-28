@@ -2,7 +2,7 @@
 // All functions use Supabase for data fetching
 
 import { createClient } from './supabase/client'
-import type { InvoiceType } from './mock-data'
+import type { InvoiceType } from '@/types/models'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']

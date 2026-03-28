@@ -39,7 +39,7 @@ import {
   getPaymentStatusLabel,
   type InvoiceType,
   type PaymentStatus,
-} from "@/lib/mock-data"
+} from "@/types/models"
 import type { Database } from '@/types/database'
 
 type InvoiceRow = Database['public']['Tables']['invoices']['Row']

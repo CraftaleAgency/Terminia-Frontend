@@ -29,7 +29,7 @@ import { useParams, useRouter } from "next/navigation"
 import {
   formatCurrency,
   formatDate,
-} from "@/lib/mock-data"
+} from "@/types/models"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { verifyCounterpartAction } from "@/lib/actions/osint"

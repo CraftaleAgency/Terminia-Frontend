@@ -30,7 +30,7 @@ import {
   formatCurrency,
   formatDate,
   daysUntil,
-} from "@/lib/mock-data"
+} from "@/types/models"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import type { Database } from "@/types/database"

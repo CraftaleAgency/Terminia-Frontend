@@ -40,7 +40,7 @@ import {
   formatCurrency,
   formatDate,
   daysUntil,
-} from "@/lib/mock-data"
+} from "@/types/models"
 import { sendChatMessageAction } from "@/lib/actions/chat"
 import type { Database } from "@/types/database"
 

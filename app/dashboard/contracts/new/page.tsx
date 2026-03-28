@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { formatCurrency } from "@/lib/mock-data"
+import { formatCurrency } from "@/types/models"
 import type { Database } from '@/types/database'
 
 type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
