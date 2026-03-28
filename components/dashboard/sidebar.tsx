@@ -27,6 +27,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { logout } from "@/app/auth/actions"
 import { useUser } from "@/lib/hooks/use-user"
+import { useSidebar } from "@/contexts/sidebar-context"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const companyNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -59,7 +61,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
   const pathname = usePathname()
   const { user } = useUser()
   const supabase = createClient()
-  const [collapsed, setCollapsed] = useState(false)
+  const { collapsed, toggleCollapsed } = useSidebar()
   const [alertCount, setAlertCount] = useState(0)
   const isPersonalAccount = user?.user_metadata?.account_type === "person"
   const navItems = isPersonalAccount ? personalNavItems : companyNavItems
@@ -124,10 +126,13 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
 
       <aside
         className={cn(
-          "fixed left-0 top-0 bottom-0 z-50 flex flex-col transition-transform duration-300 ease-out",
-          // Mobile: hidden by default, shown when mobileOpen
-          "-translate-x-full md:translate-x-0",
+          "dashboard-sidebar flex flex-col transition-transform duration-300 ease-out",
+          // Mobile: hidden by default
+          "-translate-x-full",
+          // Show on mobile when menu is open
           mobileOpen && "translate-x-0",
+          // Desktop: visible
+          "md:translate-x-0",
           collapsed ? "w-[220px] md:w-[64px]" : "w-[220px]"
         )}
       >
@@ -139,13 +144,14 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
           <X className="size-5" />
         </button>
 
-        {/* Glass background */}
-        <div className="absolute inset-0 glass-card border-r border-border/30" />
-      
-      <div className="relative flex flex-col h-full">
+        {/* Background */}
+        <div className="absolute inset-0 bg-background/95 backdrop-blur-sm border-r border-border" />
+
+        {/* Scrollable content wrapper */}
+        <div className="dashboard-sidebar-content relative flex flex-col">
         {/* Logo */}
         <div className={cn(
-          "flex items-center h-[60px] px-3 border-b border-border/20",
+          "flex items-center h-[60px] px-3 border-b border-border",
           collapsed ? "justify-center" : "gap-2"
         )}>
           <Link href="/" className="flex items-center gap-2">
@@ -172,7 +178,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
         </div>
 
         {/* Main navigation */}
-        <nav className="flex-1 px-2 py-3 overflow-y-auto">
+        <ScrollArea className="flex-1 px-2 py-3">
           <ul className="space-y-0.5">
             {navItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
@@ -225,10 +231,10 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
               )
             })}
           </ul>
-        </nav>
+        </ScrollArea>
 
         {/* Bottom section */}
-        <div className="px-2 pb-3 border-t border-border/20 pt-3">
+        <div className="px-2 pb-3 border-t border-border pt-3">
           {!isPersonalAccount && (
             <ul className="space-y-0.5 mb-3">
               {bottomNavItems.map((item) => {
@@ -268,7 +274,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
 
           {/* User profile */}
           <div className={cn(
-            "flex items-center gap-2 p-2.5 rounded-lg glass-card border border-border/20",
+            "flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border",
             collapsed && "justify-center"
           )}>
             <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
@@ -299,7 +305,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
 
           {/* Collapse toggle - hidden on mobile */}
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggleCollapsed}
             className={cn(
               "mt-3 w-full hidden md:flex items-center justify-center gap-2 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all duration-200",
               collapsed && "px-0"
@@ -315,7 +321,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
             )}
           </button>
         </div>
-      </div>
+        </div>
     </aside>
     </>
   )

@@ -1,46 +1,35 @@
 "use client"
 
-import { Bell, Search, LogOut, Menu } from "lucide-react"
 import { useState, useEffect } from "react"
+import { Search, Menu, Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { useUser } from "@/lib/hooks/use-user"
-import { createClient } from "@/lib/supabase/client"
+import { NotificationDropdown } from "@/components/dashboard/notification-dropdown"
+import { useAIChat } from "@/contexts/ai-chat-context"
+import { useSidebar } from "@/contexts/sidebar-context"
 
 interface DashboardHeaderProps {
   onMenuClick?: () => void
 }
 
 export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
-  const { user } = useUser()
-  const supabase = createClient()
-  const [unreadCount, setUnreadCount] = useState(0)
+  const { isChatOpen, toggleChat } = useAIChat()
+  const { sidebarWidth } = useSidebar()
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    if (!user) return
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
-    const fetchAlertCount = async () => {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
-
-      const { count } = await supabase
-        .from('alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', userData.company_id)
-        .in('status', ['pending', 'escalated'])
-
-      setUnreadCount(count || 0)
-    }
-
-    fetchAlertCount()
-  }, [user, supabase])
+  const headerLeft = isMobile ? 0 : sidebarWidth
 
   return (
-    <header className="sticky top-0 z-30 h-[72px] flex items-center justify-between px-4 md:px-6 border-b border-border/20 glass-card">
+    <header
+      className="fixed top-0 right-0 z-[60] h-[72px] flex items-center justify-between px-4 md:px-6 border-b border-border bg-background/95 backdrop-blur-sm flex-shrink-0 shadow-sm transition-all duration-300 ease-out"
+      style={{ left: headerLeft }}
+    >
       {/* Left section: Menu button + Search */}
       <div className="flex items-center gap-3 flex-1">
         {/* Mobile menu button */}
@@ -67,32 +56,25 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Theme toggle */}
         <ThemeToggle />
-        
-        {/* Alerts */}
-        <button className="relative p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all">
-          <Bell className="size-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-              {unreadCount}
-            </span>
-          )}
-        </button>
 
-        {/* User */}
-        <div className="flex items-center gap-3 pl-4 border-l border-border/30">
-          <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium text-foreground">
-              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Utente'}
-            </div>
-            <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
-          </div>
-          <button className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all">
-            <LogOut className="size-4" />
-          </button>
-        </div>
+        {/* Alerts */}
+        <NotificationDropdown />
+
+        {/* AI Chat */}
+        <button
+          onClick={toggleChat}
+          className={`p-2.5 rounded-xl transition-all ${
+            isChatOpen
+              ? "bg-primary text-white shadow-lg shadow-primary/25"
+              : "bg-gradient-to-r from-primary to-primary/80 text-white hover:shadow-lg hover:shadow-primary/25"
+          }`}
+          aria-label={isChatOpen ? "Chiudi assistente AI" : "Apri assistente AI"}
+        >
+          <Sparkles className="size-4" />
+        </button>
       </div>
     </header>
   )
