@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/landing/navbar"
 import { Hero } from "@/components/landing/hero"
+import { ApiLogos } from "@/components/landing/api-logos"
 import { Problem } from "@/components/landing/problem"
 import { HowItWorks } from "@/components/landing/how-it-works"
 import { Features } from "@/components/landing/features"
@@ -13,6 +14,7 @@ export default function LandingPage() {
     <main>
       <Navbar />
       <Hero />
+      <ApiLogos />
       <Problem />
       <HowItWorks />
       <Features />
