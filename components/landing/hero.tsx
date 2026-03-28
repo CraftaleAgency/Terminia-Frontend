@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ArrowRight, Play } from "lucide-react"
 import { motion } from "framer-motion"
-import { ShimmerButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
+import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
 
 export function Hero() {
   return (
@@ -34,17 +34,6 @@ export function Hero() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Hero content */}
         <div className="pt-32 md:pt-40 lg:pt-48 pb-12 text-center">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 mb-8 rounded-full glass-card text-sm text-muted-foreground"
-          >
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span>Il CRM contrattuale AI per le PMI</span>
-          </motion.div>
-
           {/* Main headline */}
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
@@ -76,10 +65,10 @@ export function Hero() {
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
           >
             <Link href="/auth/register">
-              <ShimmerButton variant="primary" size="lg">
-                Inizia Gratis
+              <BorderMagicButton size="lg">
+                Inizia Gratis 14 giorni
                 <ArrowRight className="size-5" aria-hidden />
-              </ShimmerButton>
+              </BorderMagicButton>
             </Link>
             <Link href="#how-it-works">
               <SecondaryShimmerButton size="lg">
@@ -105,19 +94,19 @@ export function Hero() {
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="relative mx-auto max-w-6xl"
+          className="relative mx-auto max-w-6xl mt-8"
         >
           {/* Glow effect behind */}
-          <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-accent/15 to-primary/20 rounded-3xl blur-3xl opacity-50" />
+          <div className="absolute -inset-8 bg-gradient-to-r from-primary/20 via-accent/15 to-primary/20 rounded-3xl blur-3xl opacity-60" />
           
           {/* Glass frame */}
-          <div className="relative glass-card rounded-2xl p-1.5 glow-teal-sm">
+          <div className="relative glass-card rounded-3xl p-2 glow-teal">
             {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 rounded-t-2xl bg-card/50">
               <div className="flex gap-1.5" aria-hidden>
-                <div className="w-3 h-3 rounded-full bg-red-400/60" />
-                <div className="w-3 h-3 rounded-full bg-amber-400/60" />
-                <div className="w-3 h-3 rounded-full bg-emerald-400/60" />
+                <div className="w-3 h-3 rounded-full bg-red-400/70" />
+                <div className="w-3 h-3 rounded-full bg-amber-400/70" />
+                <div className="w-3 h-3 rounded-full bg-emerald-400/70" />
               </div>
               <div className="flex-1 mx-4">
                 <div className="glass-card rounded-lg px-4 py-1.5 text-sm text-muted-foreground text-center max-w-xs mx-auto border-border/20">
@@ -127,7 +116,7 @@ export function Hero() {
             </div>
 
             {/* Dashboard content - using real screenshot style */}
-            <div className="rounded-b-xl overflow-hidden bg-card/50">
+            <div className="rounded-b-2xl overflow-hidden bg-card/30">
               <DashboardPreviewContent />
             </div>
           </div>
@@ -139,14 +128,14 @@ export function Hero() {
 
 function DashboardPreviewContent() {
   return (
-    <div className="h-[500px] md:h-[600px] flex">
+    <div className="h-[450px] md:h-[550px] flex">
       {/* Mini sidebar */}
       <div className="w-14 flex-shrink-0 border-r border-border/20 py-4 flex flex-col items-center gap-3 bg-sidebar/50">
         {/* Logo */}
         <div className="w-9 h-9 rounded-xl overflow-hidden mb-4 border border-border/30">
           <Image
             src="/images/terminia-logo.png"
-            alt="Terminia"
+            alt="TerminIA"
             width={36}
             height={36}
             className="w-full h-full object-cover"
@@ -189,7 +178,7 @@ function DashboardPreviewContent() {
             {[
               { label: "Contratti Attivi", value: "47", color: "text-primary" },
               { label: "In Scadenza", value: "8", color: "text-amber-500" },
-              { label: "Valore Tot.", value: "€1.2M", color: "text-emerald-500" },
+              { label: "Valore Tot.", value: "1.2M", color: "text-emerald-500" },
               { label: "Alert Aperti", value: "5", color: "text-red-400" },
               { label: "Rischio Alto", value: "3", color: "text-orange-400" },
             ].map((kpi) => (
@@ -213,9 +202,9 @@ function DashboardPreviewContent() {
               </div>
               <div className="divide-y divide-border/10">
                 {[
-                  { name: "Contratto Fornitura IT — TechSupply Srl", status: "Attivo", risk: "Basso" },
-                  { name: "Accordo Servizi — Studio Rossi & Assoc.", status: "In Scadenza", risk: "Medio" },
-                  { name: "Contratto Quadro — Logistica Express SpA", status: "Attivo", risk: "Alto" },
+                  { name: "Contratto Fornitura IT - TechSupply Srl", status: "Attivo", risk: "Basso" },
+                  { name: "Accordo Servizi - Studio Rossi & Assoc.", status: "In Scadenza", risk: "Medio" },
+                  { name: "Contratto Quadro - Logistica Express SpA", status: "Attivo", risk: "Alto" },
                 ].map((c, i) => (
                   <div key={i} className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">

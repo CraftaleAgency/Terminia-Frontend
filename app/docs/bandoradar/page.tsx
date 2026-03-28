@@ -1,191 +1,266 @@
-import { CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react"
+import { CheckCircle, AlertTriangle, XCircle, HelpCircle, FileSearch, Target, BarChart3, FileText, Clock, Zap, Globe, Database, ArrowRight } from "lucide-react"
+import Link from "next/link"
 
 export default function BandoRadarDocsPage() {
   return (
-    <article className="prose prose-neutral dark:prose-invert max-w-none">
-      <h1 className="text-4xl font-bold mb-4">BandoRadar</h1>
-      <p className="text-xl text-muted-foreground mb-8">
-        Sistema di ricerca automatica e matching intelligente di bandi pubblici 
-        per le PMI italiane.
-      </p>
-
-      <h2>Come Funziona</h2>
-      <p>
-        BandoRadar costruisce automaticamente un profilo della tua azienda leggendo 
-        i dati gia presenti in Terminia, poi confronta questo profilo con i bandi 
-        pubblicati quotidianamente su tutte le fonti pubbliche italiane ed europee.
-      </p>
-
-      <h3>Costruzione Profilo Azienda</h3>
-      <p>Il profilo viene costruito automaticamente aggregando:</p>
-      <ul>
-        <li><strong>companies:</strong> settore ATECO, dimensione, area geografica, certificazioni</li>
-        <li><strong>contracts:</strong> tipologie di servizi/beni venduti o acquistati</li>
-        <li><strong>counterparts:</strong> settori dei clienti e fornitori attuali</li>
-        <li><strong>employees:</strong> numero dipendenti e competenze</li>
-      </ul>
-
-      <div className="not-prose glass-card rounded-xl p-6 border border-border/40 my-8">
-        <h4 className="font-mono text-sm text-muted-foreground mb-3">ESEMPIO PROFILO VETTORIALE</h4>
-        <code className="text-sm text-foreground">
-          "Azienda ICT Milano, sviluppo software, 8 dipendenti, fatturato ~280k, 
-          clienti PA e privati, nessun RTI attivo, settore ATECO 62.01, 
-          no certificazioni rilevate"
-        </code>
+    <article className="max-w-none">
+      {/* Hero */}
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+            <FileSearch className="size-6" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">BandoRadar</h1>
+            <p className="text-muted-foreground">Sistema di matching intelligente per bandi pubblici</p>
+          </div>
+        </div>
+        <p className="text-lg text-muted-foreground leading-relaxed max-w-3xl">
+          BandoRadar analizza automaticamente i bandi pubblicati quotidianamente su tutte le 
+          fonti pubbliche italiane ed europee, confrontandoli con il profilo della tua azienda 
+          per identificare le opportunita piu rilevanti.
+        </p>
       </div>
 
-      <h2>Fonti Dati</h2>
-      <p>
-        L'agente OpenClaw esegue uno scraping parallelo ogni 24 ore (cron job) 
-        dalle seguenti fonti:
-      </p>
-      <ul>
-        <li><strong>ANAC API:</strong> tutti i bandi pubblicati nelle ultime 24h</li>
-        <li><strong>TED Europa API:</strong> bandi EU sopra soglia comunitaria</li>
-        <li><strong>Portali regionali:</strong> Lombardia, Lazio, Piemonte, ecc.</li>
-        <li><strong>Invitalia:</strong> incentivi e bandi innovazione</li>
-        <li><strong>MIMIT:</strong> voucher digitali, bandi PMI</li>
-        <li><strong>Consip:</strong> convenzioni e accordi quadro</li>
-      </ul>
+      {/* How it works */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <Zap className="size-6 text-primary" />
+          Come Funziona
+        </h2>
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          {[
+            { icon: Database, title: "1. Profilo Azienda", desc: "Il sistema costruisce automaticamente il tuo profilo aggregando dati da contratti, dipendenti e controparti." },
+            { icon: Globe, title: "2. Scraping Bandi", desc: "Ogni 24h l'agente OpenClaw scarica i nuovi bandi da ANAC, TED, portali regionali e Consip." },
+            { icon: Target, title: "3. Match & Alert", desc: "Calcolo del match score e notifica immediata per opportunita compatibili oltre l'80%." },
+          ].map((item) => (
+            <div key={item.title} className="glass-card rounded-xl p-5 border border-border/30">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
+                <item.icon className="size-5" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">{item.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
 
-      <h2>Calcolo Match Score</h2>
-      <p>
-        Ogni bando viene valutato su 5 dimensioni per un totale di 100 punti:
-      </p>
+        {/* Company profile example */}
+        <div className="glass-card rounded-xl p-6 border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs font-mono text-primary px-2 py-1 rounded bg-primary/10">ESEMPIO PROFILO VETTORIALE</span>
+          </div>
+          <code className="text-sm text-foreground leading-relaxed block">
+            "Azienda ICT Milano, sviluppo software, 8 dipendenti, fatturato ~280k, 
+            clienti PA e privati, nessun RTI attivo, settore ATECO 62.01, 
+            no certificazioni rilevate"
+          </code>
+        </div>
+      </section>
 
-      <div className="not-prose overflow-x-auto my-8">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-medium text-foreground">Dimensione</th>
-              <th className="text-left py-3 px-4 font-medium text-foreground">Punti Max</th>
-              <th className="text-left py-3 px-4 font-medium text-foreground">Criteri</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-border/50">
-              <td className="py-3 px-4 text-foreground font-medium">Settore</td>
-              <td className="py-3 px-4 text-primary">35</td>
-              <td className="py-3 px-4 text-muted-foreground">
-                Confronto CPV bando vs ATECO + servizi rilevati
-              </td>
-            </tr>
-            <tr className="border-b border-border/50">
-              <td className="py-3 px-4 text-foreground font-medium">Dimensione Economica</td>
-              <td className="py-3 px-4 text-primary">25</td>
-              <td className="py-3 px-4 text-muted-foreground">
-                Fatturato vs requisiti minimi bando
-              </td>
-            </tr>
-            <tr className="border-b border-border/50">
-              <td className="py-3 px-4 text-foreground font-medium">Area Geografica</td>
-              <td className="py-3 px-4 text-primary">20</td>
-              <td className="py-3 px-4 text-muted-foreground">
-                Sede aziendale vs NUTS code richiesto
-              </td>
-            </tr>
-            <tr className="border-b border-border/50">
-              <td className="py-3 px-4 text-foreground font-medium">Requisiti Tecnici</td>
-              <td className="py-3 px-4 text-primary">15</td>
-              <td className="py-3 px-4 text-muted-foreground">
-                Certificazioni, esperienze, personale
-              </td>
-            </tr>
-            <tr>
-              <td className="py-3 px-4 text-foreground font-medium">Fattibilita Operativa</td>
-              <td className="py-3 px-4 text-primary">5</td>
-              <td className="py-3 px-4 text-muted-foreground">
-                RTI richiesto o meno
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {/* Data sources */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <Globe className="size-6 text-primary" />
+          Fonti Dati
+        </h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { name: "ANAC API", desc: "Tutti i bandi PA pubblicati nelle ultime 24h" },
+            { name: "TED Europa", desc: "Bandi EU sopra soglia comunitaria (150k+)" },
+            { name: "Portali Regionali", desc: "Lombardia, Lazio, Piemonte, Emilia-Romagna" },
+            { name: "Invitalia", desc: "Incentivi, voucher e bandi innovazione" },
+            { name: "MIMIT", desc: "Voucher digitalizzazione, bandi PMI" },
+            { name: "Consip", desc: "Convenzioni e accordi quadro PA" },
+          ].map((source) => (
+            <div key={source.name} className="glass-card rounded-lg p-4 border border-border/30">
+              <h4 className="font-medium text-foreground mb-1">{source.name}</h4>
+              <p className="text-sm text-muted-foreground">{source.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <h3>Soglie di Notifica</h3>
-      <ul>
-        <li><strong>Match {'>'} 80%:</strong> Alert immediato all'utente</li>
-        <li><strong>Match 60-80%:</strong> Badge giallo, visibile in lista</li>
-        <li><strong>Match 40-60%:</strong> Badge grigio, salvato ma non notificato</li>
-        <li><strong>Match {'<'} 40%:</strong> Non salvato nel database</li>
-      </ul>
+      {/* Match score calculation */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <BarChart3 className="size-6 text-primary" />
+          Calcolo Match Score
+        </h2>
+        <p className="text-muted-foreground mb-6 max-w-3xl">
+          Ogni bando viene valutato su 5 dimensioni per un totale di 100 punti.
+          Il match score determina la priorita di visualizzazione e le notifiche.
+        </p>
 
-      <h2>Gap Analysis</h2>
-      <p>
-        Per ogni bando, il sistema genera un'analisi dettagliata dei requisiti 
-        con stato di conformita:
-      </p>
+        <div className="glass-card rounded-xl overflow-hidden border border-border/30 mb-8">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left py-4 px-5 font-semibold text-foreground">Dimensione</th>
+                <th className="text-center py-4 px-5 font-semibold text-foreground">Punti</th>
+                <th className="text-left py-4 px-5 font-semibold text-foreground">Criteri di Valutazione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { dim: "Settore", pts: 35, desc: "Confronto CPV bando vs codice ATECO + servizi rilevati dai contratti" },
+                { dim: "Dimensione Economica", pts: 25, desc: "Fatturato aziendale vs requisiti economici minimi del bando" },
+                { dim: "Area Geografica", pts: 20, desc: "Sede legale/operativa vs NUTS code richiesto dal bando" },
+                { dim: "Requisiti Tecnici", pts: 15, desc: "Certificazioni ISO, esperienze pregresse, personale qualificato" },
+                { dim: "Fattibilita Operativa", pts: 5, desc: "RTI richiesto vs capacita di partecipazione singola" },
+              ].map((row, i) => (
+                <tr key={row.dim} className={i < 4 ? "border-b border-border/50" : ""}>
+                  <td className="py-4 px-5 font-medium text-foreground">{row.dim}</td>
+                  <td className="py-4 px-5 text-center">
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold">
+                      {row.pts}
+                    </span>
+                  </td>
+                  <td className="py-4 px-5 text-muted-foreground">{row.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="not-prose space-y-3 my-8">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <CheckCircle className="size-5 text-emerald-500 flex-shrink-0" />
-          <div>
-            <span className="text-sm font-medium text-foreground">P.IVA attiva e regolare</span>
-            <span className="text-xs text-muted-foreground ml-2">Verificato</span>
+        {/* Notification thresholds */}
+        <h3 className="text-lg font-semibold text-foreground mb-4">Soglie di Notifica</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { range: "> 80%", color: "emerald", action: "Alert immediato all'utente" },
+            { range: "60-80%", color: "amber", action: "Badge giallo, visibile in lista" },
+            { range: "40-60%", color: "zinc", action: "Badge grigio, salvato ma non notificato" },
+            { range: "< 40%", color: "red", action: "Non salvato nel database" },
+          ].map((threshold) => (
+            <div
+              key={threshold.range}
+              className={`rounded-lg p-4 border ${
+                threshold.color === "emerald" ? "border-emerald-500/30 bg-emerald-500/10" :
+                threshold.color === "amber" ? "border-amber-500/30 bg-amber-500/10" :
+                threshold.color === "zinc" ? "border-border bg-muted/20" :
+                "border-red-500/30 bg-red-500/10"
+              }`}
+            >
+              <div className={`font-bold text-lg mb-1 ${
+                threshold.color === "emerald" ? "text-emerald-500" :
+                threshold.color === "amber" ? "text-amber-500" :
+                threshold.color === "zinc" ? "text-muted-foreground" :
+                "text-red-500"
+              }`}>{threshold.range}</div>
+              <p className="text-sm text-muted-foreground">{threshold.action}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Gap Analysis */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <Target className="size-6 text-primary" />
+          Gap Analysis
+        </h2>
+        <p className="text-muted-foreground mb-6 max-w-3xl">
+          Per ogni bando, il sistema genera un'analisi dettagliata dei requisiti 
+          con stato di conformita della tua azienda:
+        </p>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <CheckCircle className="size-6 text-emerald-500 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium text-foreground">P.IVA attiva e regolare</span>
+            </div>
+            <span className="text-sm text-emerald-500 font-medium px-3 py-1 rounded-full bg-emerald-500/20">Verificato</span>
+          </div>
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle className="size-6 text-amber-500 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium text-foreground">2 contratti analoghi richiesti ultimi 5 anni</span>
+            </div>
+            <span className="text-sm text-amber-500 font-medium px-3 py-1 rounded-full bg-amber-500/20">Hai 1 rilevato</span>
+          </div>
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+            <XCircle className="size-6 text-red-500 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium text-foreground">Certificazione ISO27001</span>
+            </div>
+            <span className="text-sm text-red-500 font-medium px-3 py-1 rounded-full bg-red-500/20">Non rilevata</span>
+          </div>
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
+            <HelpCircle className="size-6 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium text-foreground">Iscrizione albo fornitori regionale</span>
+            </div>
+            <span className="text-sm text-muted-foreground font-medium px-3 py-1 rounded-full bg-muted">Verifica manuale</span>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangle className="size-5 text-amber-500 flex-shrink-0" />
-          <div>
-            <span className="text-sm font-medium text-foreground">2 contratti analoghi ultimi 5 anni</span>
-            <span className="text-xs text-muted-foreground ml-2">Hai 1 rilevato</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-          <XCircle className="size-5 text-red-500 flex-shrink-0" />
-          <div>
-            <span className="text-sm font-medium text-foreground">ISO27001</span>
-            <span className="text-xs text-muted-foreground ml-2">Non rilevata nel profilo</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
-          <HelpCircle className="size-5 text-muted-foreground flex-shrink-0" />
-          <div>
-            <span className="text-sm font-medium text-foreground">Iscrizione albo fornitori</span>
-            <span className="text-xs text-muted-foreground ml-2">Verifica manuale richiesta</span>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <h2>Checklist Partecipazione</h2>
-      <p>
-        Il sistema genera automaticamente una checklist dei documenti necessari 
-        con stima dei tempi:
-      </p>
+      {/* Document checklist */}
+      <section className="mb-16">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <FileText className="size-6 text-primary" />
+          Checklist Partecipazione
+        </h2>
+        <p className="text-muted-foreground mb-6 max-w-3xl">
+          Il sistema genera automaticamente una checklist dei documenti necessari con stima dei tempi:
+        </p>
 
-      <ul>
-        <li><strong>DGUE:</strong> Scaricabile dal portale</li>
-        <li><strong>Visura camerale:</strong> Richiedi a CCIAA (~3gg)</li>
-        <li><strong>Dichiarazione antimafia:</strong> Autocertificazione</li>
-        <li><strong>DURC:</strong> Richiedi a INPS (~5gg lavorativi)</li>
-        <li><strong>Offerta tecnica:</strong> Da preparare (stima 3-5gg)</li>
-        <li><strong>Offerta economica:</strong> Da preparare (stima 1gg)</li>
-      </ul>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[
+            { doc: "DGUE", time: "Immediato", desc: "Scaricabile direttamente dal portale gara" },
+            { doc: "Visura Camerale", time: "~3 giorni", desc: "Richiesta a CCIAA competente" },
+            { doc: "DURC", time: "~5 giorni", desc: "Richiesta a INPS/INAIL" },
+            { doc: "Dichiarazione Antimafia", time: "Immediato", desc: "Autocertificazione da modello" },
+            { doc: "Offerta Tecnica", time: "3-5 giorni", desc: "Da preparare secondo disciplinare" },
+            { doc: "Offerta Economica", time: "1 giorno", desc: "Compilazione moduli economici" },
+          ].map((item) => (
+            <div key={item.doc} className="glass-card rounded-xl p-4 border border-border/30 flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Clock className="size-5" />
+              </div>
+              <div>
+                <h4 className="font-medium text-foreground mb-1">{item.doc}</h4>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+                <span className="text-xs text-primary mt-2 inline-block">Tempo stimato: {item.time}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <h2>Architettura Cron Job</h2>
-      <div className="not-prose glass-card rounded-xl p-6 border border-border/40 my-8 font-mono text-sm">
-        <pre className="text-muted-foreground overflow-x-auto">
+      {/* Architecture */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold text-foreground mb-6 flex items-center gap-3">
+          <Database className="size-6 text-primary" />
+          Architettura Tecnica
+        </h2>
+        <div className="glass-card rounded-xl p-6 border border-border/30 font-mono text-sm overflow-x-auto">
+          <pre className="text-muted-foreground whitespace-pre">
 {`supabase/functions/
-  └── bando-radar/
-      └── index.ts    <- Edge Function (cron ogni 24h)
-            |
-            STEP 1: carica company profile attivi
-            STEP 2: scarica bandi ultime 24h per fonte
-            STEP 3: calcola match score per ogni bando
-            STEP 4: se > 40%: inserisci in bandi
-            STEP 5: se > 80%: crea alert
-            STEP 6: marca bandi scaduti inactive`}
-        </pre>
-      </div>
+  bando-radar/
+    index.ts          <- Edge Function (cron ogni 24h)
+          |
+          STEP 1: Carica company profile attivi
+          STEP 2: Scarica bandi ultime 24h per fonte
+          STEP 3: Calcola match score per ogni bando
+          STEP 4: Se score > 40%: inserisci in tabella bandi
+          STEP 5: Se score > 80%: crea alert notification
+          STEP 6: Marca bandi scaduti come inactive`}
+          </pre>
+        </div>
+      </section>
 
-      <h2>Flusso Utente</h2>
-      <ol>
-        <li>Utente apre <code>/dashboard/bandi</code></li>
-        <li>Vede lista bandi ordinata per match score</li>
-        <li>Click su "Valuta" apre scheda bando con gap analysis</li>
-        <li>Puo salvare, segnare come "sto partecipando", o archiviare</li>
-        <li>Se vince, click su "Ho vinto" genera contratto automatico</li>
-      </ol>
+      {/* CTA */}
+      <div className="glass-card rounded-xl p-6 border border-primary/20 bg-primary/5 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-foreground mb-1">Pronto per iniziare?</h3>
+          <p className="text-sm text-muted-foreground">Attiva BandoRadar dal tuo piano Business o Enterprise.</p>
+        </div>
+        <Link href="/dashboard/bandi" className="flex items-center gap-2 text-primary font-medium hover:underline">
+          Vai a BandoRadar
+          <ArrowRight className="size-4" />
+        </Link>
+      </div>
     </article>
   )
 }

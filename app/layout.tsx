@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="it" className={spaceGrotesk.variable} suppressHydrationWarning>
+    <html lang="it" className={spaceGrotesk.variable} suppressHydrationWarning data-scroll-behavior="smooth">
       <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"

@@ -6,12 +6,13 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ScrollReveal } from "@/components/ui/scroll-reveal"
 import { motion } from "framer-motion"
+import { BorderMagicButton, SecondaryShimmerButton } from "@/components/ui/shimmer-button"
 
 const plans = [
   {
     name: "Starter",
-    monthlyPrice: "€ 79",
-    annualPrice: "€ 59",
+    monthlyPrice: "79",
+    annualPrice: "59",
     description: "Per le PMI che iniziano a strutturare la gestione contrattuale.",
     features: [
       "Fino a 50 contratti",
@@ -20,19 +21,19 @@ const plans = [
       "Dashboard KPI",
       "1 utente",
     ],
-    cta: "Inizia Gratis 14 giorni",
+    cta: "Inizia 14 giorni Starter",
     highlighted: false,
   },
   {
     name: "Business",
-    monthlyPrice: "€ 189",
-    annualPrice: "€ 149",
+    monthlyPrice: "189",
+    annualPrice: "149",
     description: "Per le aziende che gestiscono un portfolio contrattuale significativo.",
     features: [
       "Contratti illimitati",
       "Estrazione AI + chatbot contrattuale",
       "Alert via email e Slack",
-      "BandoRadar — ricerca bandi AI",
+      "BandoRadar - ricerca bandi AI",
       "Gestione dipendenti + lettere HR",
       "Analytics e cashflow proiettato",
       "Fino a 5 utenti",
@@ -54,7 +55,7 @@ const plans = [
       "SLA dedicato",
       "Onboarding personalizzato",
     ],
-    cta: "Contattaci",
+    cta: "Prenota Demo",
     highlighted: false,
   },
 ]
@@ -97,25 +98,37 @@ export function Pricing() {
             <div className="inline-flex items-center glass-card rounded-2xl p-1.5 border border-border/20">
               <button
                 onClick={() => setAnnual(false)}
-                className={cn(
-                  "px-6 py-2.5 text-base rounded-xl transition-all duration-200",
-                  !annual ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground"
-                )}
+                className="relative"
               >
-                Mensile
+                {!annual ? (
+                  <BorderMagicButton size="sm">
+                    Mensile
+                  </BorderMagicButton>
+                ) : (
+                  <SecondaryShimmerButton size="sm">
+                    Mensile
+                  </SecondaryShimmerButton>
+                )}
               </button>
               <button
                 onClick={() => setAnnual(true)}
-                className={cn(
-                  "px-6 py-2.5 text-base rounded-xl transition-all duration-200 flex items-center gap-2",
-                  annual ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground"
-                )}
+                className="relative"
               >
-                Annuale
-                <span className={cn(
-                  "text-sm px-2 py-0.5 rounded-full",
-                  annual ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/20 text-primary"
-                )}>-20%</span>
+                {annual ? (
+                  <BorderMagicButton size="sm">
+                    Annuale
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-background/20">
+                      -20%
+                    </span>
+                  </BorderMagicButton>
+                ) : (
+                  <SecondaryShimmerButton size="sm">
+                    Annuale
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                      -20%
+                    </span>
+                  </SecondaryShimmerButton>
+                )}
               </button>
             </div>
           </ScrollReveal>
@@ -131,14 +144,14 @@ export function Pricing() {
                 className={cn(
                   "relative rounded-3xl p-8 flex flex-col transition-all duration-300 border h-full",
                   plan.highlighted
-                    ? "bg-primary/10 border-primary/40 glow-blue"
+                    ? "bg-primary/10 border-primary/40 glow-teal"
                     : "glass-card border-border/20 hover:glass-card-hover"
                 )}
               >
                 {plan.highlighted && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-1.5 rounded-full">
-                      Più popolare
+                      Piu popolare
                     </span>
                   </div>
                 )}
@@ -148,6 +161,7 @@ export function Pricing() {
                   <p className="text-sm text-muted-foreground leading-relaxed mb-5">{plan.description}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-foreground">
+                      {plan.monthlyPrice !== "Su misura" && "€ "}
                       {annual ? plan.annualPrice : plan.monthlyPrice}
                     </span>
                     {plan.monthlyPrice !== "Su misura" && (
@@ -168,16 +182,16 @@ export function Pricing() {
                   ))}
                 </ul>
 
-                <Link
-                  href="#"
-                  className={cn(
-                    "block text-center text-base font-medium px-5 py-3.5 rounded-2xl transition-all duration-200",
-                    plan.highlighted
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 glow-blue-sm"
-                      : "glass-card border border-border/30 text-foreground hover:glass-card-hover"
+                <Link href="#" className="block">
+                  {plan.highlighted ? (
+                    <BorderMagicButton size="md" className="w-full justify-center">
+                      {plan.cta}
+                    </BorderMagicButton>
+                  ) : (
+                    <SecondaryShimmerButton size="md" className="w-full justify-center">
+                      {plan.cta}
+                    </SecondaryShimmerButton>
                   )}
-                >
-                  {plan.cta}
                 </Link>
               </motion.div>
             </ScrollReveal>
@@ -187,7 +201,7 @@ export function Pricing() {
         {/* Trust note */}
         <ScrollReveal delay={0.6}>
           <p className="text-center text-base text-muted-foreground mt-10">
-            Pagamento sicuro · Fattura elettronica disponibile · Disdetta in qualsiasi momento
+            Pagamento sicuro - Fattura elettronica disponibile - Disdetta in qualsiasi momento
           </p>
         </ScrollReveal>
       </div>
