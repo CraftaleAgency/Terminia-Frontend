@@ -1,12 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import {
-  verifyOSINT,
-  type OSINTRequest,
-  type OSINTResponse,
-  NemoClawError,
-} from '@/lib/ai/client'
+import { nemoclawClient, NemoClawError } from '@/lib/ai/client'
+import type { VerifyOSINTRequest, VerifyOSINTResponse } from '@/types/terminia'
 
 export interface VerifyCounterpartInput {
   vatNumber?: string
@@ -17,7 +13,7 @@ export interface VerifyCounterpartInput {
 
 export interface VerifyCounterpartResult {
   success: boolean
-  data?: OSINTResponse
+  data?: VerifyOSINTResponse
   error?: string
 }
 
@@ -42,14 +38,14 @@ export async function verifyCounterpartAction(
       return { success: false, error: 'Inserisci almeno P.IVA o Codice Fiscale' }
     }
 
-    const request: OSINTRequest = {
+    const request: VerifyOSINTRequest = {
       vat_number: input.vatNumber,
       fiscal_code: input.fiscalCode,
       company_name: input.companyName,
       counterpart_id: input.counterpartId,
     }
 
-    const result = await verifyOSINT(request, token)
+    const result = await nemoclawClient.verifyOSINT(request, token)
     return { success: true, data: result }
   } catch (err) {
     if (err instanceof NemoClawError) {

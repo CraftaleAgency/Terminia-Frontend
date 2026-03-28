@@ -32,7 +32,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
 import { analyzeContractAction } from "@/lib/actions/contracts"
 import { verifyCounterpartAction } from "@/lib/actions/osint"
-import type { AnalyzeResponse, OSINTResponse } from "@/lib/ai/client"
+import type { AnalyzeContractResponse, VerifyOSINTResponse } from "@/types/terminia"
 import { toast } from "sonner"
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -121,8 +121,8 @@ function NewContractContent() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [osintProgress, setOsintProgress] = useState(0)
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null)
-  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null)
-  const [osintResult, setOsintResult] = useState<OSINTResponse | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeContractResponse | null>(null)
+  const [osintResult, setOsintResult] = useState<VerifyOSINTResponse | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({

@@ -1,12 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import {
-  analyzeContract,
-  type AnalyzeRequest,
-  type AnalyzeResponse,
-  NemoClawError,
-} from '@/lib/ai/client'
+import { nemoclawClient, NemoClawError } from '@/lib/ai/client'
+import type { AnalyzeContractRequest, AnalyzeContractResponse } from '@/types/terminia'
 
 export interface AnalyzeContractInput {
   documentText?: string
@@ -17,7 +13,7 @@ export interface AnalyzeContractInput {
 
 export interface AnalyzeContractResult {
   success: boolean
-  data?: AnalyzeResponse
+  data?: AnalyzeContractResponse
   error?: string
 }
 
@@ -43,7 +39,7 @@ export async function analyzeContractAction(
       return { success: false, error: 'Sessione scaduta' }
     }
 
-    const request: AnalyzeRequest = {
+    const request: AnalyzeContractRequest = {
       document_text: input.documentText,
       document_base64: input.documentBase64,
       content_type: input.contentType,
@@ -51,7 +47,7 @@ export async function analyzeContractAction(
       contract_id: input.contractId,
     }
 
-    const result = await analyzeContract(request, token)
+    const result = await nemoclawClient.analyzeContract(request, token)
     return { success: true, data: result }
   } catch (err) {
     if (err instanceof NemoClawError) {
@@ -91,12 +87,12 @@ export async function reanalyzeContractAction(
       return { success: false, error: 'Contratto non trovato' }
     }
 
-    const request: AnalyzeRequest = {
+    const request: AnalyzeContractRequest = {
       company_id: companyId,
       contract_id: contractId,
     }
 
-    const result = await analyzeContract(request, token)
+    const result = await nemoclawClient.analyzeContract(request, token)
     return { success: true, data: result }
   } catch (err) {
     if (err instanceof NemoClawError) {

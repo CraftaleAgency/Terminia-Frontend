@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { extractOCR, NemoClawError } from '@/lib/ai/client'
+import { nemoclawClient, NemoClawError } from '@/lib/ai/client'
 
 export interface OCRResult {
   success: boolean
@@ -27,8 +27,8 @@ export async function extractTextFromImageAction(
       return { success: false, error: 'Sessione scaduta' }
     }
 
-    const result = await extractOCR({ image_base64: imageBase64 }, token)
-    return { success: true, text: result.text, confidence: result.confidence }
+    const result = await nemoclawClient.extractOCR({ image_base64: imageBase64 }, token)
+    return { success: true, text: result.text, confidence: result.format }
   } catch (err) {
     if (err instanceof NemoClawError) {
       return { success: false, error: err.message }
