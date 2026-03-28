@@ -22,6 +22,20 @@ export async function proxy(req: NextRequest) {
     }
   )
 
+  // Handle auth callback - exchange code for session
+  const requestUrl = new URL(req.url)
+  const code = requestUrl.searchParams.get('code')
+
+  if (code) {
+    try {
+      await supabase.auth.exchangeCodeForSession(code)
+      // Redirect to dashboard after successful auth, removing the code from URL
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    } catch (error) {
+      console.error('Error exchanging code for session:', error)
+    }
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -40,5 +54,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/auth/login', '/auth/register'],
+  matcher: ['/dashboard/:path*', '/auth/login', '/auth/register', '/'],
 }
