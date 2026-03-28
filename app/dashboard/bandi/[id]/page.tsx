@@ -31,13 +31,15 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
-  getBando,
   formatCurrency,
   formatDate,
   daysUntil,
-  type Bando,
   type ParticipationStatus,
 } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import type { Database } from "@/types/database"
+
+type BandoRow = Database['public']['Tables']['bandi']['Row']
 
 type BandoTabId = "dettaglio" | "match" | "gap" | "checklist" | "lotti" | "competitor"
 
@@ -45,7 +47,7 @@ const bandoTabs: { id: BandoTabId; label: string; icon: React.ReactNode }[] = [
   { id: "dettaglio", label: "Dettaglio", icon: <FileText className="size-4" /> },
   { id: "match", label: "Analisi Match", icon: <Target className="size-4" /> },
   { id: "gap", label: "Gap Analysis", icon: <AlertTriangle className="size-4" /> },
-  { id: "checklist", label: "Checklist", icon: <CheckCircle2 class="size-4" /> },
+  { id: "checklist", label: "Checklist", icon: <CheckCircle2 className="size-4" /> },
   { id: "lotti", label: "Lotti", icon: <Users className="size-4" /> },
   { id: "competitor", label: "Competitor", icon: <TrendingUp className="size-4" /> },
 ]
@@ -58,7 +60,7 @@ const participationStatuses: { value: ParticipationStatus; label: string; color:
   { value: "submitted", label: "Inviato", color: "bg-primary/10 text-primary" },
   { value: "won", label: "Vinto", color: "bg-emerald-500/10 text-emerald-400" },
   { value: "lost", label: "Perso", color: "bg-red-500/10 text-red-400" },
-  { value: "withdrawn", label: "Ritirato", color: "bg-muted/30 text-muted-foreground" },
+
 ]
 
 const sourceLabels: Record<string, string> = {
@@ -100,19 +102,27 @@ const mockCompetitors = [
 export default function BandoDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const [bando, setBando] = useState<Bando | null>(null)
+  const supabase = createClient()
+  const [bando, setBando] = useState<BandoRow | null>(null)
   const [activeTab, setActiveTab] = useState<BandoTabId>("dettaglio")
   const [participationStatus, setParticipationStatus] = useState<ParticipationStatus>("new")
   const [internalNotes, setInternalNotes] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    const bandoData = getBando(params.id as string)
-    if (bandoData) {
-      setBando(bandoData)
-      setParticipationStatus(bandoData.participation_status)
+    const fetchBando = async () => {
+      const { data } = await supabase
+        .from('bandi')
+        .select('*')
+        .eq('id', params.id as string)
+        .single()
+      if (data) {
+        setBando(data)
+        setParticipationStatus(data.participation_status as ParticipationStatus)
+      }
     }
-  }, [params.id])
+    fetchBando()
+  }, [params.id, supabase])
 
   const handleStatusChange = (status: ParticipationStatus) => {
     setParticipationStatus(status)
@@ -227,23 +237,23 @@ export default function BandoDetailPage() {
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="none"
-                  strokeDasharray={`${(bando.match_score / 100) * 283} 283`}
+                  strokeDasharray={`${((bando.match_score ?? 0) / 100) * 283} 283`}
                   className={
-                    bando.match_score >= 80 ? "text-emerald-400" :
-                    bando.match_score >= 60 ? "text-primary" :
-                    bando.match_score >= 40 ? "text-amber-400" :
+                    (bando.match_score ?? 0) >= 80 ? "text-emerald-400" :
+                    (bando.match_score ?? 0) >= 60 ? "text-primary" :
+                    (bando.match_score ?? 0) >= 40 ? "text-amber-400" :
                     "text-muted-foreground"
                   }
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className={`text-3xl font-bold ${
-                  bando.match_score >= 80 ? "text-emerald-400" :
-                  bando.match_score >= 60 ? "text-primary" :
-                  bando.match_score >= 40 ? "text-amber-400" :
+                  (bando.match_score ?? 0) >= 80 ? "text-emerald-400" :
+                  (bando.match_score ?? 0) >= 60 ? "text-primary" :
+                  (bando.match_score ?? 0) >= 40 ? "text-amber-400" :
                   "text-muted-foreground"
                 }`}>
-                  {bando.match_score}
+                  {bando.match_score ?? 0}
                 </span>
                 <span className="text-xs text-muted-foreground">Match Score</span>
               </div>
@@ -252,11 +262,11 @@ export default function BandoDetailPage() {
             {/* Score Breakdown */}
             <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
-                { label: "Settore", score: bando.score_sector, max: 40 },
-                { label: "Dimensione", score: bando.score_size, max: 30 },
-                { label: "Geo", score: bando.score_geo, max: 25 },
-                { label: "Requisiti", score: bando.score_requirements, max: 20 },
-                { label: "Fattibilita", score: bando.score_feasibility, max: 20 },
+                { label: "Settore", score: bando.score_sector ?? 0, max: 40 },
+                { label: "Dimensione", score: bando.score_size ?? 0, max: 30 },
+                { label: "Geo", score: bando.score_geo ?? 0, max: 25 },
+                { label: "Requisiti", score: bando.score_requirements ?? 0, max: 20 },
+                { label: "Fattibilita", score: bando.score_feasibility ?? 0, max: 20 },
               ].map((item) => (
                 <div key={item.label} className="bg-muted/20 rounded-xl p-3">
                   <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
@@ -354,13 +364,13 @@ export default function BandoDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Base d'Asta</div>
                           <div className="text-lg font-semibold text-foreground">
-                            {formatCurrency(bando.base_value)}
+                            {formatCurrency(bando.base_value ?? 0)}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Categoria</div>
                           <div className="text-sm font-medium text-foreground capitalize">
-                            {bando.category || "Servizi"}
+                            {bando.contract_category || "Servizi"}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
@@ -455,11 +465,11 @@ export default function BandoDetailPage() {
                       <h4 className="text-sm font-medium text-foreground mb-4">Distribuzione Score</h4>
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         {[
-                          { label: "Settore", score: bando.score_sector, max: 40, desc: "Il tuo settore ICT corrisponde al CPV principale" },
-                          { label: "Dimensione", score: bando.score_size, max: 30, desc: "Fatturato e dipendenti nel range richiesto" },
-                          { label: "Geografia", score: bando.score_geo, max: 25, desc: "Sede operativa in Lombardia" },
-                          { label: "Requisiti", score: bando.score_requirements, max: 20, desc: "Certificazioni e requisiti tecnici" },
-                          { label: "Fattibilita", score: bando.score_feasibility, max: 20, desc: "Complessita e tempi di realizzazione" },
+                          { label: "Settore", score: bando.score_sector ?? 0, max: 40, desc: "Il tuo settore ICT corrisponde al CPV principale" },
+                          { label: "Dimensione", score: bando.score_size ?? 0, max: 30, desc: "Fatturato e dipendenti nel range richiesto" },
+                          { label: "Geografia", score: bando.score_geo ?? 0, max: 25, desc: "Sede operativa in Lombardia" },
+                          { label: "Requisiti", score: bando.score_requirements ?? 0, max: 20, desc: "Certificazioni e requisiti tecnici" },
+                          { label: "Fattibilita", score: bando.score_feasibility ?? 0, max: 20, desc: "Complessita e tempi di realizzazione" },
                         ].map((item) => (
                           <div key={item.label} className="bg-muted/30 rounded-xl p-4">
                             <div className="flex items-center justify-between mb-2">
@@ -504,7 +514,7 @@ export default function BandoDetailPage() {
                       <h3 className="text-sm font-medium text-foreground mb-3">Analisi Requisiti</h3>
                       <div className="space-y-3">
                         {/* Satisfied */}
-                        {bando.gap_satisfied?.map((req, i) => (
+                        {((bando.gap_analysis_json as any)?.gap_satisfied as string[] | undefined)?.map((req: string, i: number) => (
                           <div key={`sat-${i}`} className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
                             <CheckCircle2 className="size-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                             <div>
@@ -515,7 +525,7 @@ export default function BandoDetailPage() {
                         ))}
 
                         {/* Missing */}
-                        {bando.gap_missing?.map((req, i) => (
+                        {((bando.gap_analysis_json as any)?.gap_missing as string[] | undefined)?.map((req: string, i: number) => (
                           <div key={`miss-${i}`} className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                             <XCircle className="size-4 text-red-400 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
@@ -532,9 +542,9 @@ export default function BandoDetailPage() {
                         ))}
 
                         {/* To Verify */}
-                        {bando.requirements?.filter(r =>
-                          !bando.gap_satisfied?.includes(r) && !bando.gap_missing?.includes(r)
-                        ).map((req, i) => (
+                        {(bando.documents_required as string[] | undefined)?.filter((r: string) =>
+                          !((bando.gap_analysis_json as any)?.gap_satisfied as string[] | undefined)?.includes(r) && !((bando.gap_analysis_json as any)?.gap_missing as string[] | undefined)?.includes(r)
+                        ).map((req: string, i: number) => (
                           <div key={`ver-${i}`} className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
                             <HelpCircle className="size-4 text-amber-400 mt-0.5 flex-shrink-0" />
                             <div>

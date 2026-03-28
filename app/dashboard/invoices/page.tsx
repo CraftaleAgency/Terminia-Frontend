@@ -37,12 +37,21 @@ import {
   daysUntil,
   getPaymentStatusColor,
   getPaymentStatusLabel,
-  type Invoice,
-  type Counterpart,
-  type Contract,
   type InvoiceType,
   type PaymentStatus,
 } from "@/lib/mock-data"
+import type { Database } from "@/types/database"
+
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type ContractRow = Database['public']['Tables']['contracts']['Row']
+
+type InvoiceWithRelations = InvoiceRow & {
+  counterpart_name?: string | null
+  contract_name?: string | null
+  counterparts?: { name: string } | null
+  contracts?: { title: string | null } | null
+}
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -65,7 +74,7 @@ export default function InvoicesPage() {
 
   // State
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("active")
-  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState({
     unpaid: 0,
@@ -81,10 +90,10 @@ export default function InvoicesPage() {
   const [dueDateFilter, setDueDateFilter] = useState("")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithRelations | null>(null)
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
-  const [counterparts, setCounterparts] = useState<Counterpart[]>([])
-  const [contracts, setContracts] = useState<Contract[]>([])
+  const [counterparts, setCounterparts] = useState<CounterpartRow[]>([])
+  const [contracts, setContracts] = useState<ContractRow[]>([])
   const [companyId, setCompanyId] = useState<string | null>(null)
 
   // Form state for new invoice
@@ -207,7 +216,7 @@ export default function InvoicesPage() {
         // Search filter
         const matchesSearch =
           search === "" ||
-          inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+          (inv.invoice_number ?? '').toLowerCase().includes(search.toLowerCase()) ||
           inv.counterpart_name?.toLowerCase().includes(search.toLowerCase())
 
         // Status filter
@@ -220,11 +229,11 @@ export default function InvoicesPage() {
 
         // Due date filter
         const matchesDueDate =
-          dueDateFilter === "" || inv.due_date <= dueDateFilter
+          dueDateFilter === "" || (inv.due_date ?? '') <= dueDateFilter
 
         return matchesSearch && matchesStatus && matchesCounterpart && matchesDueDate
       })
-      .sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime())
+      .sort((a, b) => new Date(b.invoice_date ?? '').getTime() - new Date(a.invoice_date ?? '').getTime())
   }, [invoices, search, statusFilter, counterpartFilter, dueDateFilter])
 
   // Reset filters
@@ -349,10 +358,10 @@ export default function InvoicesPage() {
   }, [selectedInvoice, paymentDate, supabase])
 
   // Get countdown badge
-  const getCountdownBadge = (invoice: Invoice) => {
+  const getCountdownBadge = (invoice: InvoiceWithRelations) => {
     if (invoice.payment_status === "paid") return null
 
-    const days = daysUntil(invoice.due_date)
+    const days = daysUntil(invoice.due_date ?? '')
 
     if (days < 0) {
       return (
@@ -635,12 +644,12 @@ export default function InvoicesPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-sm text-muted-foreground">
-                      {formatDate(invoice.invoice_date)}
+                      {formatDate(invoice.invoice_date ?? '')}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {formatDate(invoice.due_date)}
+                          {formatDate(invoice.due_date ?? '')}
                         </span>
                         {getCountdownBadge(invoice)}
                       </div>
@@ -650,21 +659,21 @@ export default function InvoicesPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="text-sm text-muted-foreground">
-                        {invoice.vat_rate}%
+                        {invoice.vat_rate ?? 0}%
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatCurrency((invoice.amount_net * invoice.vat_rate) / 100)}
+                        {formatCurrency((invoice.amount_net * (invoice.vat_rate ?? 0)) / 100)}
                       </div>
                     </td>
                     <td className="px-5 py-4 text-sm font-semibold text-foreground text-right">
-                      {formatCurrency(invoice.amount_gross)}
+                      {formatCurrency(invoice.amount_gross ?? 0)}
                     </td>
                     <td className="px-5 py-4 text-center">
                       <span className={cn(
                         "text-xs px-2.5 py-1 rounded-full border",
-                        getPaymentStatusColor(invoice.payment_status)
+                        getPaymentStatusColor(invoice.payment_status as PaymentStatus)
                       )}>
-                        {getPaymentStatusLabel(invoice.payment_status)}
+                        {getPaymentStatusLabel(invoice.payment_status as PaymentStatus)}
                       </span>
                     </td>
                     <td className="px-5 py-4">
@@ -726,9 +735,9 @@ export default function InvoicesPage() {
                       </span>
                       <span className={cn(
                         "text-xs px-2 py-0.5 rounded-full border",
-                        getPaymentStatusColor(invoice.payment_status)
+                        getPaymentStatusColor(invoice.payment_status as PaymentStatus)
                       )}>
-                        {getPaymentStatusLabel(invoice.payment_status)}
+                        {getPaymentStatusLabel(invoice.payment_status as PaymentStatus)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 truncate">
@@ -737,13 +746,13 @@ export default function InvoicesPage() {
                     <div className="flex items-center gap-2 mt-2">
                       <Calendar className="size-3 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">
-                        {formatDate(invoice.invoice_date)}
+                        {formatDate(invoice.invoice_date ?? '')}
                       </span>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-foreground">
-                      {formatCurrency(invoice.amount_gross)}
+                      {formatCurrency(invoice.amount_gross ?? 0)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Netto: {formatCurrency(invoice.amount_net)}
@@ -971,7 +980,7 @@ export default function InvoicesPage() {
                   {selectedInvoice.invoice_number}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
-                  {formatCurrency(selectedInvoice.amount_gross)}
+                  {formatCurrency(selectedInvoice.amount_gross ?? 0)}
                 </div>
               </div>
             )}

@@ -30,10 +30,12 @@ import {
   formatCurrency,
   formatDate,
   daysUntil,
-  type Employee,
-  type Contract,
 } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
+import type { Database } from "@/types/database"
+
+type EmployeeRow = Database['public']['Tables']['employees']['Row']
+type ContractRow = Database['public']['Tables']['contracts']['Row']
 import { useUser } from "@/lib/hooks/use-user"
 
 export default function EmployeeDetailPage() {
@@ -41,8 +43,8 @@ export default function EmployeeDetailPage() {
   const router = useRouter()
   const { user } = useUser()
   const supabase = createClient()
-  const [employee, setEmployee] = useState<Employee | null>(null)
-  const [relatedContracts, setRelatedContracts] = useState<Contract[]>([])
+  const [employee, setEmployee] = useState<EmployeeRow | null>(null)
+  const [relatedContracts, setRelatedContracts] = useState<ContractRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export default function EmployeeDetailPage() {
         const { data: employeeData, error: employeeError } = await supabase
           .from('employees')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', params.id as string)
           .eq('company_id', userData.company_id)
           .single()
 
@@ -81,7 +83,7 @@ export default function EmployeeDetailPage() {
         const { data: contractsData } = await supabase
           .from('contracts')
           .select('*')
-          .eq('employee_id', params.id)
+          .eq('employee_id', params.id as string)
           .eq('company_id', userData.company_id)
 
         setRelatedContracts(contractsData || [])
@@ -171,7 +173,7 @@ export default function EmployeeDetailPage() {
                   employee.employee_type === "consultant" ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
                   "border-muted-foreground/30 text-muted-foreground bg-muted/20"
                 }`}>
-                  {getEmployeeTypeLabel(employee.employee_type)}
+                  {getEmployeeTypeLabel(employee.employee_type ?? '')}
                 </span>
                 {hasExpiringContract && (
                   <span className="text-xs px-2.5 py-1 rounded-full border border-amber-400/30 text-amber-400 bg-amber-400/10 flex items-center gap-1">
@@ -280,7 +282,7 @@ export default function EmployeeDetailPage() {
               <div className="bg-muted/20 rounded-xl p-3">
                 <div className="text-xs text-muted-foreground mb-1">Data Assunzione</div>
                 <div className="text-sm font-medium text-foreground">
-                  {formatDate(employee.hire_date)}
+                  {formatDate(employee.hire_date ?? '')}
                 </div>
               </div>
               {employee.termination_date && (
@@ -306,7 +308,7 @@ export default function EmployeeDetailPage() {
             </div>
 
             {/* Fixed Term Info */}
-            {employee.fixed_term_count > 0 && (
+            {(employee.fixed_term_count ?? 0) > 0 && (
               <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                 <div className="text-xs text-blue-400">
                   <strong>Contratti a tempo determinato:</strong> {employee.fixed_term_count} contratti per un totale di {employee.fixed_term_months} mesi
@@ -340,21 +342,21 @@ export default function EmployeeDetailPage() {
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">RAL</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(employee.ral)}
+                  {formatCurrency(employee.ral ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">Lordo annuo</div>
               </div>
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">Costo Aziendale</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(employee.gross_cost)}
+                  {formatCurrency(employee.gross_cost ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">Lordo annuo</div>
               </div>
               <div className="bg-muted/20 rounded-xl p-4">
                 <div className="text-xs text-muted-foreground mb-1">Costo Mensile</div>
                 <div className="text-xl font-semibold text-foreground">
-                  {formatCurrency(Math.round(employee.gross_cost / 12))}
+                  {formatCurrency(Math.round((employee.gross_cost ?? 0) / 12))}
                 </div>
                 <div className="text-xs text-muted-foreground">Stimato</div>
               </div>
@@ -480,10 +482,10 @@ export default function EmployeeDetailPage() {
                 >
                   <div className="text-sm font-medium text-foreground">{contract.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {formatDate(contract.start_date)} - {contract.end_date ? formatDate(contract.end_date) : "Indeterminato"}
+                    {formatDate(contract.start_date ?? '')} - {contract.end_date ? formatDate(contract.end_date) : "Indeterminato"}
                   </div>
                   <div className="text-xs text-primary mt-1">
-                    {formatCurrency(contract.value)}/anno
+                    {formatCurrency(contract.value ?? 0)}/anno
                   </div>
                 </Link>
               ))}

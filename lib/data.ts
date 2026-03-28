@@ -2,15 +2,15 @@
 // All functions use Supabase for data fetching
 
 import { createClient } from './supabase/client'
-import type {
-  Contract,
-  Counterpart,
-  Employee,
-  Invoice,
-  Bando,
-  Alert,
-  InvoiceType
-} from './mock-data'
+import type { InvoiceType } from './mock-data'
+import type { Database } from '@/types/database'
+
+type ContractRow = Database['public']['Tables']['contracts']['Row']
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type EmployeeRow = Database['public']['Tables']['employees']['Row']
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+type BandoRow = Database['public']['Tables']['bandi']['Row']
+type AlertRow = Database['public']['Tables']['alerts']['Row']
 
 // Get current user's company ID
 export async function getCompanyId(userId: string): Promise<string | null> {
@@ -25,7 +25,7 @@ export async function getCompanyId(userId: string): Promise<string | null> {
 
 // ============ CONTRACTS ============
 
-export async function getContracts(companyId: string): Promise<Contract[]> {
+export async function getContracts(companyId: string): Promise<(ContractRow & { counterpart_name?: string; employee_name?: string })[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('contracts')
@@ -51,7 +51,7 @@ export async function getContracts(companyId: string): Promise<Contract[]> {
 
 // ============ COUNTERPARTS ============
 
-export async function getCounterparts(companyId: string): Promise<Counterpart[]> {
+export async function getCounterparts(companyId: string): Promise<CounterpartRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('counterparts')
@@ -69,7 +69,7 @@ export async function getCounterparts(companyId: string): Promise<Counterpart[]>
 
 // ============ EMPLOYEES ============
 
-export async function getEmployees(companyId: string): Promise<Employee[]> {
+export async function getEmployees(companyId: string): Promise<EmployeeRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('employees')
@@ -87,7 +87,7 @@ export async function getEmployees(companyId: string): Promise<Employee[]> {
 
 // ============ INVOICES ============
 
-export async function getInvoices(companyId: string, invoiceType?: InvoiceType): Promise<Invoice[]> {
+export async function getInvoices(companyId: string, invoiceType?: InvoiceType): Promise<(InvoiceRow & { counterpart_name?: string; contract_name?: string | null })[]> {
   const supabase = createClient()
   let query = supabase
     .from('invoices')
@@ -112,12 +112,13 @@ export async function getInvoices(companyId: string, invoiceType?: InvoiceType):
 
   return data?.map(inv => ({
     ...inv,
+    invoice_type: inv.invoice_type as InvoiceType,
     counterpart_name: inv.counterparts?.name,
     contract_name: inv.contracts?.title,
   })) || []
 }
 
-export async function saveInvoice(companyId: string, invoice: Omit<Invoice, 'id'>): Promise<Invoice | null> {
+export async function saveInvoice(companyId: string, invoice: Omit<InvoiceRow, 'id'>): Promise<InvoiceRow | null> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('invoices')
@@ -136,7 +137,7 @@ export async function saveInvoice(companyId: string, invoice: Omit<Invoice, 'id'
   return data
 }
 
-export async function markInvoiceAsPaid(invoiceId: string, paymentDate: string): Promise<Invoice | null> {
+export async function markInvoiceAsPaid(invoiceId: string, paymentDate: string): Promise<InvoiceRow | null> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('invoices')
@@ -176,15 +177,15 @@ export async function getInvoiceKPIs(companyId: string, invoiceType: InvoiceType
     unpaid: unpaid.length,
     paid: paid.length,
     overdue: overdue.length,
-    toCollect: unpaid.reduce((sum, i) => sum + i.amount_gross, 0),
-    collected: paid.reduce((sum, i) => sum + i.amount_gross, 0),
-    overdueAmount: overdue.reduce((sum, i) => sum + i.amount_gross, 0),
+    toCollect: unpaid.reduce((sum, i) => sum + (i.amount_gross ?? 0), 0),
+    collected: paid.reduce((sum, i) => sum + (i.amount_gross ?? 0), 0),
+    overdueAmount: overdue.reduce((sum, i) => sum + (i.amount_gross ?? 0), 0),
   }
 }
 
 // ============ BANDI ============
 
-export async function getBandi(companyId: string): Promise<Bando[]> {
+export async function getBandi(companyId: string): Promise<BandoRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('bandi')
@@ -202,7 +203,7 @@ export async function getBandi(companyId: string): Promise<Bando[]> {
 
 // ============ ALERTS ============
 
-export async function getAlerts(companyId: string): Promise<Alert[]> {
+export async function getAlerts(companyId: string): Promise<AlertRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('alerts')

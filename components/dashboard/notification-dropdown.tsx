@@ -165,7 +165,7 @@ export function NotificationDropdown() {
         return new Date(a.trigger_date).getTime() - new Date(b.trigger_date).getTime()
       })
       
-      setNotifications(sorted)
+      setNotifications(sorted as AlertNotification[])
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {

@@ -35,29 +35,17 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import type { Database } from "@/types/database"
 
 // Types
+type ContractRow = Database['public']['Tables']['contracts']['Row']
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
-interface Contract {
-  id: string
-  title: string
-  contract_type: string
-  counterpart_id?: string
+type Contract = ContractRow & {
   counterpart_name?: string
-  employee_id?: string
   employee_name?: string
-  status: ContractStatus
-  value: number
-  value_type: "total" | "annual" | "monthly"
-  start_date: string
-  end_date: string
-  signing_date?: string
-  auto_renewal: boolean
-  renewal_notice_days?: number
-  risk_score: number
-  reference_number?: string
-  ai_summary?: string
+  counterparts: { name: string; type: string; reliability_score: number | null; reliability_label: string | null; has_anac_annotations: boolean | null } | null
+  employees: { full_name: string; role: string | null; department: string | null; employee_type: string | null } | null
 }
 
 interface Counterpart {
@@ -72,66 +60,18 @@ interface Counterpart {
 interface Employee {
   id: string
   full_name: string
-  role: string
-  department: string
-  employee_type: string
+  role: string | null
+  department: string | null
+  employee_type: string | null
 }
 
-interface Invoice {
-  id: string
-  invoice_number: string
-  invoice_date: string
-  amount_gross: number
-  payment_status: string
-  counterpart_name: string
-  contract_id: string
-}
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
 
-interface Clause {
-  id: string
-  contract_id: string
-  clause_type: string
-  original_text: string
-  simplified_text?: string
-  page_number?: number
-  risk_level?: "low" | "medium" | "high" | "critical"
-  risk_explanation?: string
-  ai_flag?: string
-  ai_suggestion?: string
-  benchmark_comparison?: string
-  created_at?: string
-}
+type ClauseRow = Database['public']['Tables']['clauses']['Row']
 
-interface Obligation {
-  id: string
-  contract_id: string
-  party: "mine" | "theirs"
-  description: string
-  obligation_type?: string
-  due_date?: string
-  recurrence?: "monthly" | "quarterly" | "annual"
-  recurrence_end_date?: string
-  status: "pending" | "completed" | "overdue" | "waived"
-  completed_at?: string
-  completion_note?: string
-  created_at?: string
-}
+type ObligationRow = Database['public']['Tables']['obligations']['Row']
 
-interface Milestone {
-  id: string
-  contract_id: string
-  title: string
-  description?: string
-  due_date?: string
-  status: "upcoming" | "in_progress" | "delivered" | "approved" | "invoiceable" | "invoiced"
-  amount?: number
-  requires_approval?: boolean
-  approval_contact?: string
-  delivery_date?: string
-  approval_date?: string
-  invoice_id?: string
-  created_at?: string
-}
+type MilestoneRow = Database['public']['Tables']['milestones']['Row']
 
 // Utility functions
 const formatCurrency = (value: number): string => {
@@ -189,9 +129,9 @@ const getRiskColor = (score: number): string => {
 }
 
 // Empty arrays for clauses, obligations, milestones (will be fetched from Supabase later)
-const mockClauses: Clause[] = []
-const mockObligations: Obligation[] = []
-const mockMilestones: Milestone[] = []
+const mockClauses: ClauseRow[] = []
+const mockObligations: ObligationRow[] = []
+const mockMilestones: MilestoneRow[] = []
 
 const mockNegotiationHistory = [
   {
@@ -287,10 +227,10 @@ export default function ContractDetailPage() {
   const [contract, setContract] = useState<Contract | null>(null)
   const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)
-  const [relatedInvoices, setRelatedInvoices] = useState<Invoice[]>([])
-  const [clauses, setClauses] = useState<Clause[]>([])
-  const [obligations, setObligations] = useState<Obligation[]>([])
-  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [relatedInvoices, setRelatedInvoices] = useState<InvoiceRow[]>([])
+  const [clauses, setClauses] = useState<ClauseRow[]>([])
+  const [obligations, setObligations] = useState<ObligationRow[]>([])
+  const [milestones, setMilestones] = useState<MilestoneRow[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>("riepilogo")
   const [riskFilter, setRiskFilter] = useState<"all" | "critical" | "high" | "medium" | "low">("all")
@@ -347,7 +287,7 @@ export default function ContractDetailPage() {
           setContract(formattedContract)
 
           // Set counterpart data
-          if (contractData.counterparts) {
+          if (contractData.counterparts && contractData.counterpart_id) {
             setCounterpart({
               id: contractData.counterpart_id,
               name: contractData.counterparts.name,
@@ -359,7 +299,7 @@ export default function ContractDetailPage() {
           }
 
           // Set employee data
-          if (contractData.employees) {
+          if (contractData.employees && contractData.employee_id) {
             setEmployee({
               id: contractData.employee_id,
               full_name: contractData.employees.full_name,
@@ -377,7 +317,7 @@ export default function ContractDetailPage() {
             .order('invoice_date', { ascending: false })
 
           if (invoicesData) {
-            setRelatedInvoices(invoicesData as Invoice[])
+            setRelatedInvoices(invoicesData)
           }
 
           // Fetch clauses
@@ -390,7 +330,7 @@ export default function ContractDetailPage() {
           if (clausesError) {
             console.error('Error fetching clauses:', clausesError)
           } else if (clausesData) {
-            setClauses(clausesData as Clause[])
+            setClauses(clausesData)
           }
 
           // Fetch obligations
@@ -403,7 +343,7 @@ export default function ContractDetailPage() {
           if (obligationsError) {
             console.error('Error fetching obligations:', obligationsError)
           } else if (obligationsData) {
-            setObligations(obligationsData as Obligation[])
+            setObligations(obligationsData)
           }
 
           // Fetch milestones
@@ -416,7 +356,7 @@ export default function ContractDetailPage() {
           if (milestonesError) {
             console.error('Error fetching milestones:', milestonesError)
           } else if (milestonesData) {
-            setMilestones(milestonesData as Milestone[])
+            setMilestones(milestonesData)
           }
         }
       } catch (error) {
@@ -440,7 +380,7 @@ export default function ContractDetailPage() {
     )
   }
 
-  const days = daysUntil(contract.end_date)
+  const days = contract.end_date ? daysUntil(contract.end_date) : 0
   const isHR = ["permanent", "fixed_term", "cococo", "apprenticeship", "internship", "collaboration"].includes(contract.contract_type)
 
   // Filter clauses by risk
@@ -453,8 +393,8 @@ export default function ContractDetailPage() {
   const filteredObligations = obligations.filter(o => o.party === obligationParty)
 
   // Calculate invoice totals
-  const totalInvoiced = relatedInvoices.reduce((sum, i) => sum + i.amount_gross, 0)
-  const totalPaid = relatedInvoices.filter(i => i.payment_status === "paid").reduce((sum, i) => sum + i.amount_gross, 0)
+  const totalInvoiced = relatedInvoices.reduce((sum, i) => sum + (i.amount_gross ?? 0), 0)
+  const totalPaid = relatedInvoices.filter(i => i.payment_status === "paid").reduce((sum, i) => sum + (i.amount_gross ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -473,21 +413,21 @@ export default function ContractDetailPage() {
           </Link>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold text-foreground">{contract.title}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">{contract.title ?? 'Senza titolo'}</h1>
               <span className={`text-xs px-2.5 py-1 rounded-full border ${
                 contract.status === "active" ? "border-primary/30 text-primary bg-primary/10" :
                 contract.status === "expiring" ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
                 contract.status === "terminated" ? "border-red-400/30 text-red-400 bg-red-400/10" :
                 "border-muted-foreground/30 text-muted-foreground bg-muted/20"
               }`}>
-                {getStatusLabel(contract.status)}
+                {getStatusLabel(contract.status as ContractStatus)}
               </span>
               <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                contract.risk_score < 30 ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10" :
-                contract.risk_score < 60 ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
+                (contract.risk_score ?? 0) < 30 ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10" :
+                (contract.risk_score ?? 0) < 60 ? "border-amber-400/30 text-amber-400 bg-amber-400/10" :
                 "border-red-400/30 text-red-400 bg-red-400/10"
               }`}>
-                Risk: {contract.risk_score}/100
+                Risk: {contract.risk_score ?? 0}/100
               </span>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -583,7 +523,7 @@ export default function ContractDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Valore</div>
                           <div className="text-lg font-semibold text-foreground">
-                            {formatCurrency(contract.value)}
+                            {formatCurrency(contract.value ?? 0)}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {contract.value_type === "monthly" ? "Mensile" : contract.value_type === "annual" ? "Annuale" : "Totale"}
@@ -613,19 +553,19 @@ export default function ContractDetailPage() {
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Firma</div>
                           <div className="text-sm font-medium text-foreground">
-                            {contract.signing_date ? formatDate(contract.signing_date) : "-"}
+                            {contract.signed_date ? formatDate(contract.signed_date) : "-"}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Inizio</div>
                           <div className="text-sm font-medium text-foreground">
-                            {formatDate(contract.start_date)}
+                            {contract.start_date ? formatDate(contract.start_date) : "-"}
                           </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Data Fine</div>
                           <div className={`text-sm font-medium ${days <= 30 ? "text-amber-400" : "text-foreground"}`}>
-                            {formatDate(contract.end_date)}
+                            {contract.end_date ? formatDate(contract.end_date) : "-"}
                           </div>
                         </div>
                         {contract.auto_renewal && (
@@ -748,7 +688,7 @@ export default function ContractDetailPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-medium text-foreground capitalize">
-                                      {clause.clause_type.replace(/_/g, ' ')}
+                                      {(clause.clause_type ?? 'other').replace(/_/g, ' ')}
                                     </span>
                                     {clause.page_number && (
                                       <span className="text-xs text-muted-foreground">
@@ -1230,12 +1170,12 @@ export default function ContractDetailPage() {
                             <div>
                               <div className="text-sm font-medium text-foreground">{invoice.invoice_number}</div>
                               <div className="text-xs text-muted-foreground">
-                                {formatDate(invoice.invoice_date)} - {invoice.counterpart_name}
+                                {invoice.invoice_date ? formatDate(invoice.invoice_date) : "-"} - {contract.counterpart_name ?? '-'}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-foreground">
-                                {formatCurrency(invoice.amount_gross)}
+                                {formatCurrency(invoice.amount_gross ?? 0)}
                               </div>
                               <span className={`text-xs px-2 py-0.5 rounded ${
                                 invoice.payment_status === "paid" ? "bg-emerald-500/10 text-emerald-400" :
@@ -1523,7 +1463,7 @@ export default function ContractDetailPage() {
                   Contratto in Scadenza
                 </div>
                 <p className="text-xs text-red-400/80">
-                  Scade il {formatDate(contract.end_date)}
+                  Scade il {contract.end_date ? formatDate(contract.end_date) : "-"}
                 </p>
               </div>
             )}

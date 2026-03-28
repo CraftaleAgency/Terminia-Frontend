@@ -15,26 +15,16 @@ import {
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import type { Database } from "@/types/database"
 
+type ContractRow = Database['public']['Tables']['contracts']['Row']
 type ContractStatus = "draft" | "negotiating" | "active" | "expiring" | "renewed" | "terminated"
 
-interface Contract {
-  id: string
-  title: string
-  contract_type: string
-  counterpart_id?: string
+type Contract = ContractRow & {
   counterpart_name?: string
-  employee_id?: string
   employee_name?: string
-  status: ContractStatus
-  value: number
-  value_type: "total" | "annual" | "monthly"
-  start_date: string
-  end_date: string
-  auto_renewal: boolean
-  renewal_notice_days?: number
-  risk_score: number
-  reference_number?: string
+  counterparts: { name: string } | null
+  employees: { full_name: string } | null
 }
 
 const formatCurrency = (value: number): string => {
@@ -167,7 +157,7 @@ export default function ContractsPage() {
 
   const filteredContracts = contracts.filter((c) => {
     const matchesSearch =
-      c.title.toLowerCase().includes(search.toLowerCase()) ||
+      (c.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
       c.counterpart_name?.toLowerCase().includes(search.toLowerCase()) ||
       c.employee_name?.toLowerCase().includes(search.toLowerCase())
 
@@ -187,9 +177,10 @@ export default function ContractsPage() {
     active: contracts.filter(c => c.status === "active").length,
     expiring: contracts.filter(c => c.status === "expiring").length,
     totalValue: contracts.reduce((sum, c) => {
-      if (c.value_type === "monthly") return sum + c.value * 12
-      if (c.value_type === "annual") return sum + c.value
-      return sum + c.value
+      const v = c.value ?? 0
+      if (c.value_type === "monthly") return sum + v * 12
+      if (c.value_type === "annual") return sum + v
+      return sum + v
     }, 0),
   }
 
@@ -357,7 +348,7 @@ export default function ContractsPage() {
           <div className="divide-y divide-border/10">
             {filteredContracts.map((contract) => {
               const isHR = ["permanent", "fixed_term", "cococo"].includes(contract.contract_type)
-              const days = daysUntil(contract.end_date)
+              const days = contract.end_date ? daysUntil(contract.end_date) : 0
 
               return (
                 <Link
@@ -374,7 +365,7 @@ export default function ContractsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground truncate">
-                        {contract.title}
+                        {contract.title ?? 'Senza titolo'}
                       </span>
                       {contract.auto_renewal && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -391,7 +382,7 @@ export default function ContractsPage() {
                     {/* Value */}
                     <div className="text-right hidden sm:block">
                       <div className="text-sm font-medium text-foreground">
-                        {formatCurrency(contract.value)}
+                        {formatCurrency(contract.value ?? 0)}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {contract.value_type === "monthly" ? "/mese" : contract.value_type === "annual" ? "/anno" : "totale"}
@@ -400,11 +391,11 @@ export default function ContractsPage() {
 
                     {/* Risk */}
                     <div className="hidden md:flex items-center gap-1.5">
-                      {contract.risk_score >= 60 && (
+                      {(contract.risk_score ?? 0) >= 60 && (
                         <AlertTriangle className="size-3.5 text-red-400" />
                       )}
-                      <span className={`text-xs font-medium ${getRiskColor(contract.risk_score)}`}>
-                        {contract.risk_score}%
+                      <span className={`text-xs font-medium ${getRiskColor(contract.risk_score ?? 0)}`}>
+                        {contract.risk_score ?? 0}%
                       </span>
                     </div>
 
@@ -424,7 +415,7 @@ export default function ContractsPage() {
                       contract.status === "terminated" ? "border-red-400/30 text-red-400 bg-red-400/10" :
                       "border-muted-foreground/30 text-muted-foreground bg-muted/20"
                     }`}>
-                      {getStatusLabel(contract.status)}
+                      {getStatusLabel(contract.status as ContractStatus)}
                     </span>
 
                     <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />

@@ -63,6 +63,7 @@ export interface Counterpart {
   has_anac_annotations: boolean
   vat_verified: boolean
   active_contracts: number
+  status?: string
 }
 
 export interface Employee {
@@ -85,6 +86,9 @@ export interface Employee {
   safety_training_date?: string
   fixed_term_count: number
   fixed_term_months: number
+  iban?: string
+  osint_consent?: boolean
+  osint_consent_date?: string
 }
 
 export interface Alert {
@@ -124,6 +128,8 @@ export interface Bando {
   requirements: string[]
   gap_satisfied: string[]
   gap_missing: string[]
+  category?: string
+  publication_date?: string
 }
 
 export interface Invoice {

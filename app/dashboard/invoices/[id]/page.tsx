@@ -38,64 +38,139 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  getInvoice,
-  markInvoiceAsPaid,
-  deleteInvoice,
-  getCounterpart,
-  getContract,
   formatCurrency,
   formatDate,
   daysUntil,
   getPaymentStatusColor,
   getPaymentStatusLabel,
   getInvoiceTypeLabel,
-  type Invoice,
-  type Counterpart,
-  type Contract,
+  type PaymentStatus,
+  type InvoiceType,
 } from "@/lib/mock-data"
+import { createClient } from "@/lib/supabase/client"
+import type { Database } from "@/types/database"
+
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type ContractRow = Database['public']['Tables']['contracts']['Row']
+
+type InvoiceWithRelations = InvoiceRow & {
+  counterpart_name?: string | null
+  contract_name?: string | null
+  counterparts?: { name: string } | null
+  contracts?: { title: string | null } | null
+}
+import { useUser } from "@/lib/hooks/use-user"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 export default function InvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
-  const [contract, setContract] = useState<Contract | null>(null)
+  const { user } = useUser()
+  const supabase = createClient()
+  const [invoice, setInvoice] = useState<InvoiceWithRelations | null>(null)
+  const [counterpart, setCounterpart] = useState<CounterpartRow | null>(null)
+  const [contract, setContract] = useState<ContractRow | null>(null)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
 
   useEffect(() => {
-    const invoiceData = getInvoice(params.id as string)
-    if (invoiceData) {
-      setInvoice(invoiceData)
-      if (invoiceData.counterpart_id) {
-        setCounterpart(getCounterpart(invoiceData.counterpart_id) || null)
-      }
-      if (invoiceData.contract_id) {
-        setContract(getContract(invoiceData.contract_id) || null)
+    if (!user) return
+
+    const fetchData = async () => {
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData?.company_id) return
+
+        const { data: invoiceData, error } = await supabase
+          .from('invoices')
+          .select(`
+            *,
+            counterparts!invoices_counterpart_id_fkey(name),
+            contracts!invoices_contract_id_fkey(title)
+          `)
+          .eq('id', params.id as string)
+          .eq('company_id', userData.company_id)
+          .single()
+
+        if (error || !invoiceData) return
+
+        const formattedInvoice: InvoiceWithRelations = {
+          ...invoiceData,
+          counterpart_name: invoiceData.counterparts?.name,
+          contract_name: invoiceData.contracts?.title,
+        }
+        setInvoice(formattedInvoice)
+
+        if (invoiceData.counterpart_id) {
+          const { data: cp } = await supabase
+            .from('counterparts')
+            .select('*')
+            .eq('id', invoiceData.counterpart_id)
+            .single()
+          setCounterpart(cp || null)
+        }
+
+        if (invoiceData.contract_id) {
+          const { data: ct } = await supabase
+            .from('contracts')
+            .select('*')
+            .eq('id', invoiceData.contract_id)
+            .single()
+          setContract(ct || null)
+        }
+      } catch (error) {
+        console.error('Error fetching invoice data:', error)
       }
     }
-  }, [params.id])
 
-  const handleMarkAsPaid = () => {
+    fetchData()
+  }, [user, supabase, params.id])
+
+  const handleMarkAsPaid = async () => {
     if (!invoice) return
 
-    const updated = markInvoiceAsPaid(invoice.id, paymentDate)
-    if (updated) {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ payment_status: 'paid', payment_date: paymentDate })
+        .eq('id', invoice.id)
+
+      if (error) throw error
+
       toast.success("Fattura segnata come pagata")
       setIsPayModalOpen(false)
-      setInvoice(updated)
+      setInvoice({ ...invoice, payment_status: 'paid', payment_date: paymentDate })
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error)
+      toast.error("Errore nell'aggiornamento della fattura")
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!invoice) return
 
-    deleteInvoice(invoice.id)
-    toast.success("Fattura eliminata")
-    router.push("/dashboard/invoices")
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id)
+
+      if (error) throw error
+
+      toast.success("Fattura eliminata")
+      router.push("/dashboard/invoices")
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      toast.error("Errore nell'eliminazione della fattura")
+    }
   }
 
   const handleDownload = () => {
@@ -107,10 +182,10 @@ export default function InvoiceDetailPage() {
   }
 
   // Calculate days until due
-  const daysUntilDue = invoice ? daysUntil(invoice.due_date) : 0
+  const daysUntilDue = invoice ? daysUntil(invoice.due_date ?? '') : 0
 
   // Calculate VAT amount
-  const vatAmount = invoice ? (invoice.amount_net * invoice.vat_rate) / 100 : 0
+  const vatAmount = invoice ? (invoice.amount_net * (invoice.vat_rate ?? 0)) / 100 : 0
 
   // Timeline steps
   const timelineSteps = useMemo(() => {
@@ -204,9 +279,9 @@ export default function InvoiceDetailPage() {
               </h1>
               <span className={cn(
                 "text-sm px-3 py-1 rounded-full border",
-                getPaymentStatusColor(invoice.payment_status)
+                getPaymentStatusColor(invoice.payment_status as PaymentStatus)
               )}>
-                {getPaymentStatusLabel(invoice.payment_status)}
+                {getPaymentStatusLabel(invoice.payment_status as PaymentStatus)}
               </span>
               <span className={cn(
                 "text-xs px-2.5 py-1 rounded-full border",
@@ -214,7 +289,7 @@ export default function InvoiceDetailPage() {
                   ? "border-primary/30 text-primary bg-primary/10"
                   : "border-purple-400/30 text-purple-400 bg-purple-400/10"
               )}>
-                {getInvoiceTypeLabel(invoice.invoice_type)}
+                {getInvoiceTypeLabel(invoice.invoice_type as InvoiceType)}
               </span>
             </div>
           </div>
@@ -284,7 +359,7 @@ export default function InvoiceDetailPage() {
                 <div>
                   <div className="text-xs text-muted-foreground">Data Emissione</div>
                   <div className="text-sm font-medium text-foreground mt-1">
-                    {formatDate(invoice.invoice_date)}
+                    {formatDate(invoice.invoice_date ?? '')}
                   </div>
                 </div>
 
@@ -292,7 +367,7 @@ export default function InvoiceDetailPage() {
                   <div className="text-xs text-muted-foreground">Data Scadenza</div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm font-medium text-foreground">
-                      {formatDate(invoice.due_date)}
+                      {formatDate(invoice.due_date ?? '')}
                     </span>
                     {invoice.payment_status !== "paid" && (
                       <span className={cn(
@@ -419,7 +494,7 @@ export default function InvoiceDetailPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-base font-semibold text-foreground">Totale Lordo</span>
                   <span className="text-xl font-bold text-primary">
-                    {formatCurrency(invoice.amount_gross)}
+                    {formatCurrency(invoice.amount_gross ?? 0)}
                   </span>
                 </div>
               </div>
@@ -586,7 +661,7 @@ export default function InvoiceDetailPage() {
                 {invoice.invoice_number}
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                {formatCurrency(invoice.amount_gross)}
+                {formatCurrency(invoice.amount_gross ?? 0)}
               </div>
             </div>
 
@@ -641,7 +716,7 @@ export default function InvoiceDetailPage() {
                 #{invoice.invoice_number}
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                {formatCurrency(invoice.amount_gross)}
+                {formatCurrency(invoice.amount_gross ?? 0)}
               </div>
             </div>
           </div>

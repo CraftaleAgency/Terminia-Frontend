@@ -27,9 +27,13 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { formatCurrency, type Counterpart, type Employee } from "@/lib/mock-data"
+import { formatCurrency } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/hooks/use-user"
+import type { Database } from "@/types/database"
+
+type Counterpart = Database['public']['Tables']['counterparts']['Row']
+type Employee = Database['public']['Tables']['employees']['Row']
 
 type CreationMode = "upload" | "manual"
 type ContractType = "service_supply" | "goods_supply" | "framework" | "nda" | "agency" | "partnership" | "permanent" | "fixed_term" | "cococo" | "apprenticeship" | "internship" | "collaboration"

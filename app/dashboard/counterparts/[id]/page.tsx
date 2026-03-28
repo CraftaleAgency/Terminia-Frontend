@@ -29,10 +29,12 @@ import { useParams, useRouter } from "next/navigation"
 import {
   formatCurrency,
   formatDate,
-  type Counterpart,
-  type Contract,
 } from "@/lib/mock-data"
 import { createClient } from "@/lib/supabase/client"
+import type { Database } from "@/types/database"
+
+type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
+type ContractRow = Database['public']['Tables']['contracts']['Row']
 import { useUser } from "@/lib/hooks/use-user"
 
 export default function CounterpartDetailPage() {
@@ -40,8 +42,8 @@ export default function CounterpartDetailPage() {
   const router = useRouter()
   const { user } = useUser()
   const supabase = createClient()
-  const [counterpart, setCounterpart] = useState<Counterpart | null>(null)
-  const [relatedContracts, setRelatedContracts] = useState<Contract[]>([])
+  const [counterpart, setCounterpart] = useState<CounterpartRow | null>(null)
+  const [relatedContracts, setRelatedContracts] = useState<ContractRow[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -66,7 +68,7 @@ export default function CounterpartDetailPage() {
         const { data: counterpartData, error: counterpartError } = await supabase
           .from('counterparts')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', params.id as string)
           .eq('company_id', userData.company_id)
           .single()
 
@@ -81,7 +83,7 @@ export default function CounterpartDetailPage() {
         const { data: contractsData } = await supabase
           .from('contracts')
           .select('*')
-          .eq('counterpart_id', params.id)
+          .eq('counterpart_id', params.id as string)
           .eq('company_id', userData.company_id)
 
         setRelatedContracts(contractsData || [])
@@ -151,7 +153,7 @@ export default function CounterpartDetailPage() {
   }
 
   // Total exposure
-  const totalExposure = relatedContracts.reduce((sum, c) => sum + c.value, 0)
+  const totalExposure = relatedContracts.reduce((sum, c) => sum + (c.value ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -180,11 +182,11 @@ export default function CounterpartDetailPage() {
                  counterpart.type === "client" ? "Cliente" : "Partner"}
               </span>
               <span className={`text-xs px-2.5 py-1 rounded-full border ${
-                counterpart.is_active !== false
+                (counterpart as any).status !== "inactive"
                   ? "border-emerald-400/30 text-emerald-400 bg-emerald-400/10"
                   : "border-muted-foreground/30 text-muted-foreground bg-muted/20"
               }`}>
-                {counterpart.is_active !== false ? "Attiva" : "Inattiva"}
+                {(counterpart as any).status !== "inactive" ? "Attiva" : "Inattiva"}
               </span>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -255,20 +257,20 @@ export default function CounterpartDetailPage() {
                     stroke="currentColor"
                     strokeWidth="8"
                     fill="none"
-                    strokeDasharray={`${(counterpart.reliability_score / 100) * 283} 283`}
-                    className={getReliabilityColor(counterpart.reliability_score)}
+                    strokeDasharray={`${((counterpart.reliability_score ?? 0) / 100) * 283} 283`}
+                    className={getReliabilityColor(counterpart.reliability_score ?? 0)}
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={`text-2xl font-bold ${getReliabilityColor(counterpart.reliability_score)}`}>
-                    {counterpart.reliability_score}
+                  <span className={`text-2xl font-bold ${getReliabilityColor(counterpart.reliability_score ?? 0)}`}>
+                    {counterpart.reliability_score ?? 0}
                   </span>
                   <span className="text-[10px] text-muted-foreground">/ 100</span>
                 </div>
               </div>
               <div>
-                <div className={`text-lg font-semibold ${getReliabilityColor(counterpart.reliability_score)}`}>
-                  {getReliabilityLabel(counterpart.reliability_label)}
+                <div className={`text-lg font-semibold ${getReliabilityColor(counterpart.reliability_score ?? 0)}`}>
+                  {getReliabilityLabel(counterpart.reliability_label ?? '')}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Aggiornato: oggi 08:30
@@ -279,11 +281,11 @@ export default function CounterpartDetailPage() {
             {/* Score Breakdown */}
             <div className="grid grid-cols-5 gap-3 mb-6">
               {[
-                { label: "Legale", score: counterpart.score_legal, max: 30 },
-                { label: "Contributiva", score: counterpart.score_contributory, max: 20 },
-                { label: "Reputazione", score: counterpart.score_reputation, max: 20 },
-                { label: "Solidita", score: counterpart.score_solidity, max: 20 },
-                { label: "Coerenza", score: counterpart.score_consistency, max: 10 },
+                { label: "Legale", score: counterpart.score_legal ?? 0, max: 30 },
+                { label: "Contributiva", score: counterpart.score_contributory ?? 0, max: 20 },
+                { label: "Reputazione", score: counterpart.score_reputation ?? 0, max: 20 },
+                { label: "Solidita", score: counterpart.score_solidity ?? 0, max: 20 },
+                { label: "Coerenza", score: counterpart.score_consistency ?? 0, max: 10 },
               ].map((item) => (
                 <div key={item.label} className="bg-muted/20 rounded-xl p-3 text-center">
                   <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
@@ -445,12 +447,12 @@ export default function CounterpartDetailPage() {
                     <div>
                       <div className="text-sm font-medium text-foreground">{contract.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {contract.reference_number} - {getStatusLabel(contract.status)}
+                        {contract.reference_number} - {getStatusLabel(contract.status ?? '')}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-foreground">
-                        {formatCurrency(contract.value)}
+                        {formatCurrency(contract.value ?? 0)}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {contract.value_type === "monthly" ? "/mese" : contract.value_type === "annual" ? "/anno" : "totale"}
@@ -477,12 +479,12 @@ export default function CounterpartDetailPage() {
               {formatCurrency(counterpart.total_exposure || totalExposure)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {counterpart.active_contracts || relatedContracts.length} contratti attivi
+              {relatedContracts.length} contratti attivi
             </div>
           </motion.div>
 
           {/* Warnings Card */}
-          {(counterpart.has_anac_annotations || counterpart.reliability_score < 60) && (
+          {(counterpart.has_anac_annotations || (counterpart.reliability_score ?? 0) < 60) && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -498,7 +500,7 @@ export default function CounterpartDetailPage() {
                   Annotazioni ANAC rilevate su questa controparte
                 </div>
               )}
-              {counterpart.reliability_score < 60 && (
+              {(counterpart.reliability_score ?? 0) < 60 && (
                 <div className="text-xs text-amber-400/80">
                   Reliability score sotto la soglia di sicurezza (60)
                 </div>
