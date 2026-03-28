@@ -71,7 +71,7 @@ export function DashboardSidebar() {
     <aside
       className={cn(
         "fixed left-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 ease-out",
-        collapsed ? "w-[72px]" : "w-[260px]"
+        collapsed ? "w-[64px]" : "w-[220px]"
       )}
     >
       {/* Glass background */}
@@ -80,15 +80,15 @@ export function DashboardSidebar() {
       <div className="relative flex flex-col h-full">
         {/* Logo */}
         <div className={cn(
-          "flex items-center h-[72px] px-4 border-b border-border/20",
-          collapsed ? "justify-center" : "gap-3"
+          "flex items-center h-[60px] px-3 border-b border-border/20",
+          collapsed ? "justify-center" : "gap-2"
         )}>
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2">
             <Image
               src="/images/terminia-logo.png"
               alt="Terminia"
-              width={36}
-              height={36}
+              width={32}
+              height={32}
               className="rounded-lg flex-shrink-0"
             />
             <AnimatePresence>
@@ -97,7 +97,7 @@ export function DashboardSidebar() {
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: "auto" }}
                   exit={{ opacity: 0, width: 0 }}
-                  className="text-foreground font-semibold text-lg tracking-tight overflow-hidden whitespace-nowrap"
+                  className="text-foreground font-semibold text-base tracking-tight overflow-hidden whitespace-nowrap"
                 >
                   Terminia
                 </motion.span>
@@ -107,25 +107,25 @@ export function DashboardSidebar() {
         </div>
 
         {/* Main navigation */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto">
-          <ul className="space-y-1">
+        <nav className="flex-1 px-2 py-3 overflow-y-auto">
+          <ul className="space-y-0.5">
             {mainNavItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
               const Icon = item.icon
-              
+
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     className={cn(
-                      "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-primary/15 text-primary glow-teal-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     )}
                   >
                     <Icon className={cn(
-                      "size-5 flex-shrink-0 transition-colors",
+                      "size-4 flex-shrink-0 transition-colors",
                       isActive ? "text-primary" : "group-hover:text-foreground"
                     )} />
                     <AnimatePresence>
@@ -163,25 +163,25 @@ export function DashboardSidebar() {
         </nav>
 
         {/* Bottom section */}
-        <div className="px-3 pb-4 border-t border-border/20 pt-4">
+        <div className="px-2 pb-3 border-t border-border/20 pt-3">
           {/* Settings */}
-          <ul className="space-y-1 mb-4">
+          <ul className="space-y-0.5 mb-3">
             {bottomNavItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               const Icon = item.icon
-              
+
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     className={cn(
-                      "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-primary/15 text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     )}
                   >
-                    <Icon className="size-5 flex-shrink-0" />
+                    <Icon className="size-4 flex-shrink-0" />
                     <AnimatePresence>
                       {!collapsed && (
                         <motion.span
@@ -202,11 +202,11 @@ export function DashboardSidebar() {
 
           {/* User profile */}
           <div className={cn(
-            "flex items-center gap-3 p-3 rounded-xl glass-card border border-border/20",
+            "flex items-center gap-2 p-2.5 rounded-lg glass-card border border-border/20",
             collapsed && "justify-center"
           )}>
-            <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
-              <UserCircle className="size-5 text-primary" />
+            <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
+              <UserCircle className="size-4 text-primary" />
             </div>
             <AnimatePresence>
               {!collapsed && (

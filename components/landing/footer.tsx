@@ -5,7 +5,7 @@ const footerLinks = {
   Prodotto: [
     { label: "Funzionalita", href: "#features" },
     { label: "BandoRadar", href: "#bandoradar" },
-    { label: "Prezzi", href: "#pricing" },
+    // { label: "Prezzi", href: "#pricing" },
     { label: "Documentazione", href: "/docs" },
   ],
   Legale: [

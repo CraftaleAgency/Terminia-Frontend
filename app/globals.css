@@ -29,7 +29,7 @@
   --chart-3: oklch(0.45 0.10 210);
   --chart-4: oklch(0.60 0.10 175);
   --chart-5: oklch(0.52 0.13 200);
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --glass-bg: oklch(0.98 0.005 200 / 0.7);
   --glass-border: oklch(0.85 0.03 185 / 0.4);
   --teal-glow: oklch(0.55 0.14 185);
@@ -116,7 +116,7 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 2px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -144,19 +144,21 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
   }
 }
 
 @layer utilities {
   .glass-card {
     background: var(--glass-bg);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
   }
   .glass-card-hover:hover {
@@ -176,10 +178,10 @@
     background-clip: text;
   }
   .glow-teal {
-    box-shadow: 0 0 50px oklch(from var(--teal-glow) l c h / 0.3), 0 0 100px oklch(from var(--teal-glow) l c h / 0.15);
+    box-shadow: 0 0 30px oklch(from var(--teal-glow) l c h / 0.25), 0 0 60px oklch(from var(--teal-glow) l c h / 0.12);
   }
   .glow-teal-sm {
-    box-shadow: 0 0 25px oklch(from var(--teal-glow) l c h / 0.25);
+    box-shadow: 0 0 15px oklch(from var(--teal-glow) l c h / 0.2);
   }
   .border-gradient {
     position: relative;

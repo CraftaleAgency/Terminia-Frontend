@@ -4,7 +4,7 @@ import { Problem } from "@/components/landing/problem"
 import { HowItWorks } from "@/components/landing/how-it-works"
 import { Features } from "@/components/landing/features"
 import { BandoRadar } from "@/components/landing/bandoradar"
-import { Pricing } from "@/components/landing/pricing"
+// import { Pricing } from "@/components/landing/pricing"
 import { Cta } from "@/components/landing/cta"
 import { Footer } from "@/components/landing/footer"
 
@@ -17,7 +17,7 @@ export default function LandingPage() {
       <HowItWorks />
       <Features />
       <BandoRadar />
-      <Pricing />
+      {/* <Pricing /> */}
       <Cta />
       <Footer />
     </main>

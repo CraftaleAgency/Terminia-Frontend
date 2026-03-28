@@ -798,7 +798,66 @@ export function getBando(id: string): Bando | undefined {
 
 export function getInvoices(): Invoice[] {
   if (typeof window === "undefined") return []
-  return JSON.parse(localStorage.getItem("terminia_invoices") || "[]")
+  const invoices = JSON.parse(localStorage.getItem("terminia_invoices") || "[]")
+  // Aggiorna automaticamente lo stato overdue
+  return invoices.map((inv: Invoice) => {
+    if (inv.payment_status !== "paid" && new Date(inv.due_date) < new Date()) {
+      return { ...inv, payment_status: "overdue" as PaymentStatus }
+    }
+    return inv
+  })
+}
+
+export function getInvoice(id: string): Invoice | undefined {
+  return getInvoices().find(i => i.id === id)
+}
+
+export function getInvoicesByType(type: InvoiceType): Invoice[] {
+  return getInvoices().filter(i => i.invoice_type === type)
+}
+
+export function saveInvoice(invoice: Omit<Invoice, "id"> & { id?: string }): Invoice {
+  const invoices = getInvoices()
+  const newInvoice: Invoice = {
+    ...invoice,
+    id: invoice.id || `inv${Date.now()}`,
+  } as Invoice
+
+  const existingIndex = invoices.findIndex(i => i.id === newInvoice.id)
+  if (existingIndex >= 0) {
+    invoices[existingIndex] = newInvoice
+  } else {
+    invoices.push(newInvoice)
+  }
+
+  localStorage.setItem("terminia_invoices", JSON.stringify(invoices))
+  return newInvoice
+}
+
+export function deleteInvoice(id: string): void {
+  const invoices = getInvoices().filter(i => i.id !== id)
+  localStorage.setItem("terminia_invoices", JSON.stringify(invoices))
+}
+
+export function markInvoiceAsPaid(id: string, paymentDate: string): Invoice | undefined {
+  const invoice = getInvoice(id)
+  if (!invoice) return undefined
+
+  const updated = {
+    ...invoice,
+    payment_status: "paid" as PaymentStatus,
+    payment_date: paymentDate,
+  }
+
+  return saveInvoice(updated)
+}
+
+export function calculateVAT(amountNet: number, vatRate: number): number {
+  return (amountNet * vatRate) / 100
+}
+
+export function calculateGross(amountNet: number, vatRate: number): number {
+  return amountNet + calculateVAT(amountNet, vatRate)
 }
 
 // KPIs
@@ -908,5 +967,50 @@ export function getPriorityColor(priority: AlertPriority): string {
     case "medium": return "text-primary bg-primary/10 border-primary/30"
     case "low": return "text-muted-foreground bg-secondary border-border"
     default: return "text-muted-foreground bg-secondary border-border"
+  }
+}
+
+export function getPaymentStatusColor(status: PaymentStatus): string {
+  switch (status) {
+    case "paid": return "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
+    case "overdue": return "text-red-400 bg-red-400/10 border-red-400/30"
+    case "partial": return "text-amber-400 bg-amber-400/10 border-amber-400/30"
+    case "unpaid": return "text-muted-foreground bg-secondary border-border"
+    default: return "text-muted-foreground bg-secondary border-border"
+  }
+}
+
+export function getPaymentStatusLabel(status: PaymentStatus): string {
+  const labels: Record<PaymentStatus, string> = {
+    paid: "Pagata",
+    unpaid: "In attesa",
+    overdue: "Scaduta",
+    partial: "Parziale",
+  }
+  return labels[status] || status
+}
+
+export function getInvoiceTypeLabel(type: InvoiceType): string {
+  return type === "active" ? "Emessa" : "Ricevuta"
+}
+
+export function getInvoiceKPIs(invoiceType: InvoiceType) {
+  const invoices = getInvoicesByType(invoiceType)
+
+  const unpaid = invoices.filter(i => i.payment_status === "unpaid" || i.payment_status === "overdue")
+  const paid = invoices.filter(i => i.payment_status === "paid")
+  const overdue = invoices.filter(i => i.payment_status === "overdue")
+
+  const toCollect = unpaid.reduce((sum, i) => sum + i.amount_gross, 0)
+  const collected = paid.reduce((sum, i) => sum + i.amount_gross, 0)
+  const overdueAmount = overdue.reduce((sum, i) => sum + i.amount_gross, 0)
+
+  return {
+    unpaid: unpaid.length,
+    paid: paid.length,
+    overdue: overdue.length,
+    toCollect,
+    collected,
+    overdueAmount,
   }
 }
