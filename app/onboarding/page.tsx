@@ -1,9 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Check, Building2, Users, Upload, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react"
+import { Check, Building2, Users, Upload, ArrowRight, Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { analyzeContractAction } from "@/lib/actions/contracts"
+import type { AnalyzeContractResult } from "@/lib/actions/contracts"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -56,6 +59,12 @@ export default function OnboardingPage() {
   // Step 3 data
   const [teamMembers, setTeamMembers] = useState([{ email: "", role: "viewer" }])
 
+  // Step 4 data
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeContractResult | null>(null)
+
   const handleNext = () => {
     if (currentStep < 4) {
       setCompletedSteps([...completedSteps, currentStep])
@@ -71,9 +80,43 @@ export default function OnboardingPage() {
     }
   }
 
-  const finishOnboarding = () => {
+  const finishOnboarding = async () => {
     setIsLoading(true)
-    // Save to localStorage
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        // Get company_id from users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', user.id)
+          .single()
+
+        if (userData?.company_id) {
+          await supabase
+            .from('companies')
+            .update({
+              ateco_code: atecoCode || undefined,
+              pec: pec || undefined,
+              sdi_code: sdiCode || undefined,
+              address: address || undefined,
+              annual_revenue: revenue ? Number(revenue) : undefined,
+              employee_count: employeeCount ? Number(employeeCount) : undefined,
+              certifications: selectedCerts.length > 0 ? selectedCerts : undefined,
+              geographic_operations: selectedRegions.length > 0 ? selectedRegions : undefined,
+              past_pa_contracts: hasPaExperience,
+              past_pa_contracts_value: paContractValue ? Number(paContractValue) : undefined,
+            })
+            .eq('id', userData.company_id)
+        }
+      }
+    } catch (err) {
+      console.error('Errore salvataggio onboarding:', err)
+    }
+
+    // Keep localStorage as fallback
     const existingUser = JSON.parse(localStorage.getItem("terminia_user") || "{}")
     localStorage.setItem("terminia_user", JSON.stringify({
       ...existingUser,
@@ -90,9 +133,38 @@ export default function OnboardingPage() {
       onboardingComplete: true,
     }))
     
-    setTimeout(() => {
-      router.push("/dashboard")
-    }, 1000)
+    router.push("/dashboard")
+  }
+
+  const handleFileUpload = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) return // 10MB limit
+    setUploadedFile(file)
+    setIsAnalyzing(true)
+    setAnalysisResult(null)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const base64 = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      )
+      const contentType = file.type || 'application/pdf'
+
+      const result = await analyzeContractAction({
+        documentBase64: base64,
+        contentType,
+      })
+      setAnalysisResult(result)
+    } catch {
+      setAnalysisResult({ success: false, error: 'Errore durante l\'analisi' })
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleFileUpload(file)
   }
 
   const addTeamMember = () => {
@@ -452,36 +524,132 @@ export default function OnboardingPage() {
               <div className="space-y-6">
                 <div>
                   <h1 className="text-2xl font-semibold text-foreground mb-2">Carica il primo contratto</h1>
-                  <p className="text-muted-foreground">Vedi Terminia in azione. Questo step e opzionale.</p>
+                  <p className="text-muted-foreground">Vedi Terminia in azione. Questo step è opzionale.</p>
                 </div>
 
-                <div className="border-2 border-dashed border-border/40 rounded-2xl p-12 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <Upload className="size-8 text-primary" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file)
+                  }}
+                />
+
+                {!uploadedFile && !isAnalyzing && (
+                  <div
+                    className="border-2 border-dashed border-border/40 rounded-2xl p-12 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                  >
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Upload className="size-8 text-primary" />
+                    </div>
+                    <p className="text-foreground font-medium mb-1">Trascina un PDF qui</p>
+                    <p className="text-sm text-muted-foreground mb-4">oppure clicca per selezionare</p>
+                    <p className="text-xs text-muted-foreground">PDF, DOCX fino a 10MB</p>
                   </div>
-                  <p className="text-foreground font-medium mb-1">Trascina un PDF qui</p>
-                  <p className="text-sm text-muted-foreground mb-4">oppure clicca per selezionare</p>
-                  <p className="text-xs text-muted-foreground">PDF, DOCX fino a 10MB</p>
-                </div>
+                )}
+
+                {isAnalyzing && (
+                  <div className="border border-border/40 rounded-2xl p-12 text-center">
+                    <Loader2 className="size-10 mx-auto mb-4 text-primary animate-spin" />
+                    <p className="text-foreground font-medium mb-1">Analisi del contratto in corso...</p>
+                    <p className="text-sm text-muted-foreground">{uploadedFile?.name}</p>
+                  </div>
+                )}
+
+                {!isAnalyzing && analysisResult?.success && analysisResult.data && (
+                  <div className="border border-primary/30 rounded-2xl p-6 space-y-4 bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="size-6 text-primary flex-shrink-0" />
+                      <div>
+                        <p className="text-foreground font-medium">Contratto analizzato</p>
+                        <p className="text-sm text-muted-foreground">{uploadedFile?.name}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-3 rounded-lg bg-background/50">
+                        <p className="text-muted-foreground text-xs mb-1">Tipo contratto</p>
+                        <p className="text-foreground font-medium">{analysisResult.data.classification.contract_type}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-background/50">
+                        <p className="text-muted-foreground text-xs mb-1">Rischio</p>
+                        <p className="text-foreground font-medium">
+                          {analysisResult.data.risk_score.label} ({analysisResult.data.risk_score.score}/100)
+                        </p>
+                      </div>
+                    </div>
+                    {analysisResult.data.extraction.parties.length > 0 && (
+                      <div className="p-3 rounded-lg bg-background/50 text-sm">
+                        <p className="text-muted-foreground text-xs mb-1">Parti</p>
+                        {analysisResult.data.extraction.parties.map((party, i) => (
+                          <p key={i} className="text-foreground">
+                            <span className="font-medium">{party.name}</span>
+                            <span className="text-muted-foreground"> — {party.role}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setUploadedFile(null)
+                        setAnalysisResult(null)
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Carica un altro contratto
+                    </button>
+                  </div>
+                )}
+
+                {!isAnalyzing && analysisResult && !analysisResult.success && (
+                  <div className="border border-yellow-500/30 rounded-2xl p-6 space-y-3 bg-yellow-500/5">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="size-6 text-yellow-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-foreground font-medium">Il contratto verrà analizzato in seguito</p>
+                        <p className="text-sm text-muted-foreground">{uploadedFile?.name}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {analysisResult.error || 'Si è verificato un errore. Potrai riprovare dalla dashboard.'}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setUploadedFile(null)
+                        setAnalysisResult(null)
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Riprova con un altro file
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
                     onClick={finishOnboarding}
-                    disabled={isLoading}
+                    disabled={isLoading || isAnalyzing}
                     className="flex-1 h-12 text-base font-medium bg-secondary/30 border-border/40"
                   >
                     Salta e vai alla dashboard
                   </Button>
                   <Button
                     onClick={finishOnboarding}
-                    disabled={isLoading}
+                    disabled={isLoading || isAnalyzing}
                     className="flex-1 h-12 text-base font-medium glow-teal-sm"
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="size-4 mr-2 animate-spin" />
-                        Caricamento...
+                        Salvataggio...
                       </>
                     ) : (
                       <>
