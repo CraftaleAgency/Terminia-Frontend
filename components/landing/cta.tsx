@@ -35,13 +35,13 @@ export function Cta() {
         <ScrollReveal delay={0.3}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/auth/register">
-              <BorderMagicButton size="lg">
+              <BorderMagicButton size="lg" asChild>
                 Inizia Gratis — 14 giorni
                 <ArrowRight className="size-5" aria-hidden />
               </BorderMagicButton>
             </Link>
             <Link href="#">
-              <SecondaryShimmerButton size="lg">
+              <SecondaryShimmerButton size="lg" asChild>
                 Prenota una demo
               </SecondaryShimmerButton>
             </Link>

@@ -174,11 +174,11 @@ export function Pricing() {
 
                 <Link href="#" className="block">
                   {plan.highlighted ? (
-                    <BorderMagicButton size="md" className="w-full justify-center">
+                    <BorderMagicButton size="md" className="w-full justify-center" asChild>
                       {plan.cta}
                     </BorderMagicButton>
                   ) : (
-                    <SecondaryShimmerButton size="md" className="w-full justify-center">
+                    <SecondaryShimmerButton size="md" className="w-full justify-center" asChild>
                       {plan.cta}
                     </SecondaryShimmerButton>
                   )}

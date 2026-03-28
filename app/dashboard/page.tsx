@@ -280,7 +280,12 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-foreground">Distribuzione Rischio</h3>
             <p className="text-sm text-muted-foreground">Per contratto</p>
           </div>
-          <div className="h-[200px]">
+          <ChartContainer
+            config={{
+              value: { label: "Contratti" },
+            }}
+            className="h-[200px] w-full"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -291,15 +296,16 @@ export default function DashboardPage() {
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
+                  nameKey="name"
                 >
                   {riskDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+          </ChartContainer>
           <div className="flex justify-center gap-4 mt-2">
             {riskDistribution.map((item) => (
               <div key={item.name} className="flex items-center gap-2">
