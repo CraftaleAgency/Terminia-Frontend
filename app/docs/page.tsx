@@ -20,7 +20,7 @@ export default function DocsPage() {
       </div>
 
       {/* Quick links grid */}
-      <div className="grid md:grid-cols-2 gap-6 mb-16">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
         <Link
           href="/docs/bandoradar"
           className="group glass-card rounded-2xl p-6 border border-border/40 hover:border-primary/40 hover:glow-teal-sm transition-all duration-300"
@@ -52,6 +52,25 @@ export default function DocsPage() {
           </h3>
           <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
             Verifica automatica affidabilita controparti con ricerca OSINT multi-fonte e scoring reputazionale.
+          </p>
+          <span className="flex items-center gap-1 text-sm text-primary font-medium">
+            Leggi la guida
+            <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
+          </span>
+        </Link>
+
+        <Link
+          href="/docs/architettura"
+          className="group glass-card rounded-2xl p-6 border border-border/40 hover:border-primary/40 hover:glow-teal-sm transition-all duration-300"
+        >
+          <div className="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
+            <Layers className="size-7" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+            Architettura Agenti
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+            Piattaforma agenti AI sandbox con NemoClaw, OpenShell e 10 skill OpenClaw per automazione business intelligence.
           </p>
           <span className="flex items-center gap-1 text-sm text-primary font-medium">
             Leggi la guida

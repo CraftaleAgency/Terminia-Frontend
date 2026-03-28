@@ -9,6 +9,7 @@ const footerLinks = {
   ],
   Risorse: [
     { label: "Documentazione", href: "/docs" },
+    { label: "Architettura", href: "/docs/architettura" },
     { label: "Integrazioni", href: "/docs/integrazioni" },
   ],
   Legale: [

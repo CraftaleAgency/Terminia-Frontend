@@ -364,27 +364,6 @@ export default function IntegrazioniPage() {
         </div>
       </ScrollReveal>
 
-      {/* Technical details */}
-      <ScrollReveal delay={0.5}>
-        <div className="mt-12 glass-card rounded-xl p-6 border border-border/30 font-mono text-sm overflow-x-auto">
-          <pre className="text-muted-foreground whitespace-pre">
-{`supabase/functions/
-  integrations/
-    index.ts          <- Edge Function per orchestrazione
-          |
-          ├── fetch_anac_bandi()      # Download CSV/JSON ANAC
-          ├── fetch_ted_europa()      # REST API TED Europa
-          ├── verify_vat_vies()       # SOAP API VIESAC
-          ├── validate_codice_fiscale() # Algoritmo locale
-          └── scrape_anac_casellario() # Web scraping ANCL
-
-Database schema:
-  integrations_config    # Configurazioni e API keys
-  integrations_logs      # Log chiamate e errori
-  integrations_sync      # Timestamp ultimi sync`}
-          </pre>
-        </div>
-      </ScrollReveal>
     </article>
   )
 }
