@@ -619,7 +619,7 @@ export default function AlertsPage() {
           <div className="rounded-full bg-green-100 dark:bg-green-900/20 p-4 mb-4">
             <CheckCircle2 className="h-8 w-8 text-green-500" />
           </div>
-          <h3 className="text-lg font-semibold mb-1">Tutto sotto controllo! 🎉</h3>
+          <h3 className="text-lg font-semibold mb-1">Tutto sotto controllo!</h3>
           <p className="text-muted-foreground">
             {hasActiveFilters 
               ? "Nessun alert corrisponde ai filtri selezionati"
