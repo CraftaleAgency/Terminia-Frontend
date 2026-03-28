@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAIChat } from "@/contexts/ai-chat-context"
+import { sendChatMessageAction, getChatStreamConfig, type ChatMessage } from "@/lib/actions/chat"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Message {
@@ -120,37 +121,6 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     }
   }, [isResizing, setChatWidth])
 
-  const generateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase()
-
-    if (lowerMessage.includes("carica") && lowerMessage.includes("contratto")) {
-      return "Per caricare un nuovo contratto:\n\n1. Vai nella sezione 'Contratti' dalla sidebar\n2. Clicca sul pulsante 'Nuovo Contratto' in alto a destra\n3. Trascina il file PDF o DOCX nell'area di upload\n4. L'AI analizzerà automaticamente il documento estraendo scadenze, clausole e obblighi\n\nIl processo richiede circa 30-60 secondi. Vuoi che ti guidi attraverso i passaggi?"
-    }
-
-    if (lowerMessage.includes("alert") && lowerMessage.includes("scadenza")) {
-      return "Gli alert per le scadenze funzionano così:\n\n• Notifiche automatiche: Riceverai email e notifiche in-app a 90, 60 e 30 giorni prima di ogni scadenza critica\n\n• Tipi di alert:\n- Scadenze contratti\n- Pagamenti attesi\n- Rinnovi taciti\n- Bandi pubblici compatibili\n\n• Personalizzazione: Puoi configurare le preferenze nelle Impostazioni > Notifiche\n\nVuoi configurare le tue preferenze di notifica ora?"
-    }
-
-    if (lowerMessage.includes("cerca") && lowerMessage.includes("clausola")) {
-      return "Per cercare una clausola specifica:\n\n1. Usa la barra di ricerca globale (⌘K) nell'header\n2. Digita parole chiave come 'penale', 'rinnovo', 'riservatezza'\n3. Oppure apri un contratto e usa la chatbot contrattuale per domande specifiche\n\n**Esempio**: 'Quali sono le clausole penali nel contratto con TechSupply?'\n\nL'AI cercherà in tutti i documenti e ti mostrerà i risultati pertinenti. Vuoi provare una ricerca?"
-    }
-
-    if (lowerMessage.includes("risk score") || lowerMessage.includes("rischio")) {
-      return "Il Risk Score è un indicatore 0-100 che valuta il livello di rischio di ogni contratto:\n\n• 0-30 - Basso: Contratti con clausole standard, nessuna penale significativa\n\n• 31-70 - Medio: Presenza di alcune clausole attention, scadenze ravvicinate\n\n• 71-100 - Alto: Clausole rischiose, penali elevate, scadenze critiche imminenti\n\nL'AI analizza automaticamente:\n- Clausole penali\n- Termini di disdetta\n- Obblighi contrattuali\n- Storico pagamenti\n\nVuoi vedere i contratti ad alto rischio nel tuo portfolio?"
-    }
-
-    if (lowerMessage.includes("aggiung") && lowerMessage.includes("controparte")) {
-      return "Per aggiungere una nuova controparte:\n\n1. Vai in 'Controparti' dalla sidebar\n2. Clicca 'Nuova Controparte'\n3. Inserisci i dati:\n   - Ragione sociale\n   - Partita IVA (verificata automaticamente via API)\n   - Categoria (Fornitore, Cliente, Partner)\n\nL'API VIES verificherà automaticamente la validità della Partita IVA europea.\n\nVuoi aggiungere una controparte ora?"
-    }
-
-    if (lowerMessage.includes("pagament") && lowerMessage.includes("scadenza")) {
-      return "Per tracciare i pagamenti in scadenza:\n\n• Dashboard > Fatture mostra:\n- Da incassare: fatture emesse non ancora pagate\n- Da pagare: fatture ricevute con scadenza\n\n• Cashflow Proiettato:\n- Visualizza i pagamenti attesi nei prossimi 6-12 mesi\n- Basato sulle milestone estratte automaticamente dai contratti\n\n• Alert automatici:\n- Notifiche 7 giorni prima della scadenza\n- Promemoria per fatture scadute\n\nVuoi vedere l'elenco dei pagamenti imminenti?"
-    }
-
-    // Default response
-    return "Grazie per la domanda! Sono qui per aiutarti con la gestione dei contratti.\n\nPosso assisterti con:\n• Caricamento e analisi contratti\n• Configurazione alert e scadenze\n• Ricerca clausole e informazioni\n• Interpretazione risk score\n• Gestione controparti\n• Tracciamento pagamenti\n\nCosa vorresti sapere di più?"
-  }
-
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return
 
@@ -165,18 +135,118 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     setInputValue("")
     setIsTyping(true)
 
-    // Simulate AI thinking
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000))
+    const chatHistory: ChatMessage[] = [
+      ...messages.map(m => ({ role: m.role, content: m.content })),
+      { role: "user" as const, content: content.trim() }
+    ]
 
-    const aiResponse: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: generateAIResponse(content),
-      timestamp: new Date()
+    // Try streaming first, fall back to non-streaming server action
+    let streamCommitted = false
+    try {
+      const config = await getChatStreamConfig()
+      if ("error" in config) throw new Error(config.error)
+
+      const response = await fetch(config.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.token}`,
+        },
+        body: JSON.stringify({
+          messages: chatHistory.slice(-20),
+          company_id: config.companyId,
+          stream: true,
+        }),
+      })
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Stream failed (${response.status})`)
+      }
+
+      // Stream is available — commit to this path
+      streamCommitted = true
+      const assistantMessageId = (Date.now() + 1).toString()
+      setIsTyping(false)
+      setMessages(prev => [...prev, {
+        id: assistantMessageId,
+        role: "assistant" as const,
+        content: "",
+        timestamp: new Date()
+      }])
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed || trimmed.startsWith(":")) continue
+            if (trimmed === "data: [DONE]") return
+
+            if (trimmed.startsWith("data: ")) {
+              try {
+                const chunk = JSON.parse(trimmed.slice(6)) as { content?: string }
+                if (chunk.content) {
+                  setMessages(prev => prev.map(m =>
+                    m.id === assistantMessageId
+                      ? { ...m, content: m.content + chunk.content }
+                      : m
+                  ))
+                }
+              } catch {
+                // skip malformed SSE chunk
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+
+      // If the stream ended with no content, show a fallback
+      setMessages(prev => prev.map(m =>
+        m.id === assistantMessageId && !m.content.trim()
+          ? { ...m, content: "Mi dispiace, non riesco a rispondere in questo momento. Riprova tra qualche istante." }
+          : m
+      ))
+    } catch {
+      // If we already committed to streaming, partial content stays as-is
+      if (streamCommitted) return
+
+      // Fall back to non-streaming server action
+      try {
+        const result = await sendChatMessageAction(chatHistory)
+        setIsTyping(false)
+
+        if (result.success && result.response) {
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: "assistant" as const,
+            content: result.response,
+            timestamp: new Date()
+          }])
+        } else {
+          throw new Error(result.error)
+        }
+      } catch {
+        setIsTyping(false)
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: "assistant" as const,
+          content: "Mi dispiace, non riesco a rispondere in questo momento. Riprova tra qualche istante.",
+          timestamp: new Date()
+        }])
+      }
     }
-
-    setMessages(prev => [...prev, aiResponse])
-    setIsTyping(false)
   }
 
   const handleQuestionClick = (question: string) => {
