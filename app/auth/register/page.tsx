@@ -221,7 +221,7 @@ export default function RegisterPage() {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [])
+  }, [formData.accountType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
