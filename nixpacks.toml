@@ -1,2 +1,11 @@
 [phases.install]
 cmds = ["pnpm install"]
+
+[phases.build]
+cmds = ["pnpm run build"]
+
+[start]
+cmd = "pnpm run start -- -p ${PORT:-3004} -H 0.0.0.0"
+
+[variables]
+NODE_ENV = "production"
