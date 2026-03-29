@@ -110,7 +110,7 @@ export interface BandiListProps {
 }
 
 export function BandiList({ initialBandi }: BandiListProps) {
-  const [bandi] = useState<Bando[]>(initialBandi)
+  const [bandi, setBandi] = useState<Bando[]>(initialBandi)
   const [search, setSearch] = useState("")
   const [viewMode, setViewMode] = useState<"card" | "table">("card")
   const [matchFilter, setMatchFilter] = useState(0)
@@ -118,6 +118,8 @@ export function BandiList({ initialBandi }: BandiListProps) {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [syncProgress, setSyncProgress] = useState<{ step: string; message: string; progress: number } | null>(null)
+  const [syncSummary, setSyncSummary] = useState<{ total_synced: number; total_matched: number; alerts_created: number } | null>(null)
 
   const filteredBandi = bandi.filter(bando => {
     const matchesSearch =
@@ -138,11 +140,68 @@ export function BandiList({ initialBandi }: BandiListProps) {
     participating: bandi.filter(b => b.participation_status != null && ["participating", "submitted"].includes(b.participation_status)).length,
   }
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    setTimeout(() => {
+    setSyncProgress(null)
+    setSyncSummary(null)
+
+    try {
+      const response = await fetch('/api/bandi-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Errore sync: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response stream')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(trimmed.slice(6)) as {
+              step?: string; status?: string; progress?: number; message?: string
+              summary?: { total_synced: number; total_matched: number; alerts_created: number }
+            }
+            if (event.progress !== undefined) {
+              setSyncProgress({
+                step: event.step || '',
+                message: event.message || '',
+                progress: event.progress,
+              })
+            }
+            if (event.step === 'complete' && event.summary) {
+              setSyncSummary(event.summary)
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      // Refresh bandi data after sync
+      const freshResponse = await fetch('/api/bandi-sync', { method: 'GET' }).catch(() => null)
+      // Reload via server action not available in client — use window reload
+      window.location.reload()
+    } catch (err) {
+      console.error('BandoRadar sync error:', err)
+      setSyncProgress({ step: 'error', message: (err as Error).message, progress: 0 })
+    } finally {
       setIsRefreshing(false)
-    }, 2000)
+    }
   }
 
   const toggleSource = (source: string) => {
@@ -186,6 +245,35 @@ export function BandiList({ initialBandi }: BandiListProps) {
           </button>
         </div>
       </div>
+
+      {/* Sync Progress Banner */}
+      {syncProgress && (
+        <div className="glass-card rounded-2xl p-4 border border-border/20">
+          <div className="flex items-center gap-3 mb-2">
+            {syncProgress.step === 'error' ? (
+              <AlertTriangle className="size-4 text-red-400" />
+            ) : (
+              <Loader2 className="size-4 animate-spin text-primary" />
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {syncProgress.message || 'Sincronizzazione in corso...'}
+            </span>
+          </div>
+          {syncProgress.step !== 'error' && (
+            <div className="w-full bg-muted/30 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-500"
+                style={{ width: `${syncProgress.progress}%` }}
+              />
+            </div>
+          )}
+          {syncSummary && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {syncSummary.total_synced} bandi sincronizzati, {syncSummary.total_matched} analizzati, {syncSummary.alerts_created} alert creati
+            </p>
+          )}
+        </div>
+      )}
 
       {/* KPI Bar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -187,6 +187,13 @@ export default function RegisterPage() {
           filled.add('sector')
         }
 
+        // Map company_size from AI extraction
+        const aiSize = registrationProfile?.company_size
+        if (formData.accountType === 'company' && aiSize && ['micro', 'small', 'medium', 'large'].includes(aiSize)) {
+          updates.size = aiSize
+          filled.add('size')
+        }
+
         const contractType = `${result.data.classification.contract_type ?? ''} ${sourceText}`.toLowerCase()
         const sectorKeywords: [string, string][] = [
           ['informatica', 'Informatica e Tecnologia'],

@@ -10,6 +10,14 @@ type ClauseInsert = Database['public']['Tables']['clauses']['Insert']
 type ObligationInsert = Database['public']['Tables']['obligations']['Insert']
 type MilestoneInsert = Database['public']['Tables']['milestones']['Insert']
 
+async function getCompanyId(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('users').select('company_id').eq('id', user.id).single()
+  return data?.company_id || null
+}
+
 export interface AnalyzeContractInput {
   documentText?: string
   documentBase64?: string
@@ -34,7 +42,7 @@ export async function analyzeContractAction(
       return { success: false, error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     if (!companyId) {
       return { success: false, error: 'Nessuna azienda associata' }
     }
@@ -75,7 +83,7 @@ export async function reanalyzeContractAction(
       return { success: false, error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     const session = await supabase.auth.getSession()
     const token = session.data.session?.access_token
     if (!token || !companyId) {
@@ -179,7 +187,7 @@ export async function saveContractAction(input: SaveContractInput): Promise<Save
       return { success: false, error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     if (!companyId) {
       return { success: false, error: 'Nessuna azienda associata' }
     }
@@ -330,5 +338,160 @@ export async function updateContractAnalysisAction(
   } catch (err) {
     console.error('updateContractAnalysisAction failed:', err)
     return { success: false, error: 'Errore durante l\'aggiornamento' }
+  }
+}
+
+/**
+ * Save the registration document as the user's first contract.
+ * Called after signup completes and the user lands on the dashboard.
+ * Uploads the file to storage and creates a contract record + triggers analysis.
+ */
+export async function saveRegistrationContractAction(input: {
+  documentBase64: string
+  contentType: string
+  filename: string
+  title?: string
+}): Promise<{ success: boolean; contractId?: string; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { success: false, error: 'Non autenticato' }
+
+    const companyId = await getCompanyId()
+    if (!companyId) return { success: false, error: 'Nessuna azienda associata' }
+
+    // Upload file to Supabase storage
+    const storagePath = `${user.id}/contracts/${Date.now()}-${input.filename}`
+    const buffer = Buffer.from(input.documentBase64, 'base64')
+    await supabase.storage
+      .from('documents')
+      .upload(storagePath, buffer, { contentType: input.contentType, upsert: false })
+
+    // Create draft contract record
+    const contractTitle = input.title || input.filename.replace(/\.[^.]+$/, '') || 'Documento Costitutivo'
+    const { data: contract, error: contractError } = await supabase
+      .from('contracts')
+      .insert({
+        company_id: companyId,
+        created_by: user.id,
+        title: contractTitle,
+        contract_type: 'altro',
+        status: 'draft',
+      } satisfies ContractInsert)
+      .select('id')
+      .single()
+
+    if (contractError || !contract) {
+      return { success: false, error: contractError?.message || 'Errore creazione contratto' }
+    }
+
+    // Link document to contract
+    await supabase.from('contract_documents').insert({
+      contract_id: contract.id,
+      file_name: input.filename,
+      file_url: storagePath,
+      file_size: buffer.length,
+      file_type: input.contentType.includes('pdf') ? 'pdf' : 'docx',
+      document_role: 'original',
+      is_current: true,
+      uploaded_by: user.id,
+    })
+
+    // Trigger full AI analysis pipeline (fire-and-forget via server action)
+    const session = await supabase.auth.getSession()
+    const token = session.data.session?.access_token
+    if (token) {
+      try {
+        const apiUrl = process.env.NEMOCLAW_API_URL || 'http://terminia-api:3100'
+        const response = await fetch(`${apiUrl}/api/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            document_base64: input.documentBase64,
+            content_type: input.contentType,
+            company_id: companyId,
+            contract_id: contract.id,
+          }),
+        })
+        if (response.ok) {
+          const analysis = await response.json()
+          // Update contract with analysis results
+          if (analysis.classification) {
+            await supabase.from('contracts').update({
+              contract_type: analysis.classification.contract_type || 'altro',
+              ai_summary: analysis.classification.summary_it || null,
+              ai_confidence: analysis.classification.confidence || null,
+              ai_extracted_at: new Date().toISOString(),
+              risk_score: analysis.risk?.risk_score ?? null,
+              status: 'active',
+              start_date: analysis.extraction?.dates?.start_date || null,
+              end_date: analysis.extraction?.dates?.end_date || null,
+              signed_date: analysis.extraction?.dates?.signing_date || null,
+              value: analysis.extraction?.value?.total_value || null,
+              auto_renewal: analysis.extraction?.renewal?.auto_renewal || false,
+              language: analysis.classification.language || 'it',
+            }).eq('id', contract.id)
+
+            // Update title with counterpart name if available
+            const counterpartName = analysis.classification.parties?.counterpart?.name
+            if (counterpartName) {
+              await supabase.from('contracts').update({
+                title: `${counterpartName} - ${analysis.classification.contract_type || contractTitle}`,
+              }).eq('id', contract.id)
+            }
+          }
+        }
+      } catch {
+        // Non-fatal — contract created, analysis can be retried manually
+      }
+    }
+
+    return { success: true, contractId: contract.id }
+  } catch (err) {
+    console.error('saveRegistrationContractAction failed:', err)
+    return { success: false, error: 'Errore durante il salvataggio' }
+  }
+}
+
+/**
+ * Upload a contract document file to Supabase storage and link to contract.
+ */
+export async function uploadContractDocumentAction(input: {
+  contractId: string
+  documentBase64: string
+  contentType: string
+  filename: string
+}): Promise<{ success: boolean; storagePath?: string; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return { success: false, error: 'Non autenticato' }
+
+    const storagePath = `${user.id}/contracts/${Date.now()}-${input.filename}`
+    const buffer = Buffer.from(input.documentBase64, 'base64')
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(storagePath, buffer, { contentType: input.contentType, upsert: false })
+
+    if (uploadError) return { success: false, error: uploadError.message }
+
+    await supabase.from('contract_documents').insert({
+      contract_id: input.contractId,
+      file_name: input.filename,
+      file_url: storagePath,
+      file_size: buffer.length,
+      file_type: input.contentType.includes('pdf') ? 'pdf' : 'docx',
+      document_role: 'original',
+      is_current: true,
+      uploaded_by: user.id,
+    })
+
+    return { success: true, storagePath }
+  } catch (err) {
+    console.error('uploadContractDocumentAction failed:', err)
+    return { success: false, error: 'Errore upload documento' }
   }
 }

@@ -32,6 +32,7 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import { reanalyzeContractAction } from "@/lib/actions/contracts"
 import type { Database } from '@/types/database'
 
@@ -366,7 +367,7 @@ export function ContractDetail({
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Valore</div>
                           <div className="text-lg font-semibold text-foreground">
-                            {formatCurrency(contract.value ?? 0)}
+                            {contract.value ? formatCurrency(contract.value) : "-"}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {contract.value_type === "monthly" ? "Mensile" : contract.value_type === "annual" ? "Annuale" : "Totale"}
@@ -374,17 +375,25 @@ export function ContractDetail({
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Termini Pagamento</div>
-                          <div className="text-lg font-semibold text-foreground">30 gg</div>
+                          <div className="text-lg font-semibold text-foreground">
+                            {contract.payment_terms ? `${contract.payment_terms} gg` : "-"}
+                          </div>
                           <div className="text-xs text-muted-foreground">Data fattura</div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Regime IVA</div>
-                          <div className="text-lg font-semibold text-foreground">22%</div>
-                          <div className="text-xs text-muted-foreground">Ordinario</div>
+                          <div className="text-lg font-semibold text-foreground">
+                            {contract.vat_rate ? `${contract.vat_rate}%` : "-"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {contract.vat_regime || "-"}
+                          </div>
                         </div>
                         <div className="bg-muted/20 rounded-xl p-3">
                           <div className="text-xs text-muted-foreground mb-1">Ritenuta d&apos;Acconto</div>
-                          <div className="text-lg font-semibold text-foreground">No</div>
+                          <div className="text-lg font-semibold text-foreground">
+                            {contract.withholding_tax ? `${contract.withholding_rate ?? 20}%` : "No"}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -432,7 +441,9 @@ export function ContractDetail({
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground">Durata rinnovo:</span>
-                            <span className="text-foreground ml-2">12 mesi</span>
+                            <span className="text-foreground ml-2">
+                              {contract.renewal_duration_months ? `${contract.renewal_duration_months} mesi` : "-"}
+                            </span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Preavviso:</span>
@@ -441,6 +452,76 @@ export function ContractDetail({
                         </div>
                       </div>
                     )}
+
+                    {/* Risk Analysis (from stored full analysis JSON) */}
+                    {(() => {
+                      let analysis: { risk?: { risk_label?: string; dimensions?: Record<string, number> | null; top_risks?: string[]; recommendations_it?: string[] } } | null = null
+                      try {
+                        if (contract.notes) analysis = JSON.parse(contract.notes)
+                      } catch { /* not JSON */ }
+                      if (!analysis?.risk) return null
+                      const risk = analysis.risk
+                      return (
+                        <div className="space-y-4">
+                          {risk.risk_label && (
+                            <div className={cn(
+                              "rounded-xl p-4 border",
+                              (contract.risk_score ?? 0) >= 70 ? "bg-red-500/10 border-red-500/20" :
+                              (contract.risk_score ?? 0) >= 40 ? "bg-amber-500/10 border-amber-500/20" :
+                              "bg-emerald-500/10 border-emerald-500/20"
+                            )}>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-foreground">Analisi Rischio</span>
+                                <span className={cn(
+                                  "text-sm font-semibold",
+                                  (contract.risk_score ?? 0) >= 70 ? "text-red-400" :
+                                  (contract.risk_score ?? 0) >= 40 ? "text-amber-400" :
+                                  "text-emerald-400"
+                                )}>
+                                  {contract.risk_score}/100 - {risk.risk_label}
+                                </span>
+                              </div>
+                              {risk.dimensions && (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                                  {Object.entries(risk.dimensions).map(([key, val]) => (
+                                    <div key={key} className="bg-background/50 rounded-lg p-2">
+                                      <div className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</div>
+                                      <div className="text-sm font-medium text-foreground">{val}/100</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {risk.top_risks && risk.top_risks.length > 0 && (
+                            <div className="bg-muted/20 rounded-xl p-4">
+                              <h4 className="text-sm font-medium text-foreground mb-2">Rischi Principali</h4>
+                              <ul className="space-y-1">
+                                {risk.top_risks.map((r, i) => (
+                                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                                    <AlertTriangle className="size-3.5 text-amber-400 mt-0.5 shrink-0" />
+                                    {r}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {risk.recommendations_it && risk.recommendations_it.length > 0 && (
+                            <div className="bg-muted/20 rounded-xl p-4">
+                              <h4 className="text-sm font-medium text-foreground mb-2">Raccomandazioni</h4>
+                              <ul className="space-y-1">
+                                {risk.recommendations_it.map((r, i) => (
+                                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                                    <CheckCircle2 className="size-3.5 text-primary mt-0.5 shrink-0" />
+                                    {r}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </motion.div>
                 )}
 
