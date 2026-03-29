@@ -16,6 +16,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { saveCounterpartAction } from "@/lib/actions/data"
 import { verifyCounterpartAction } from "@/lib/actions/osint"
 
 type CounterpartType = "supplier" | "client" | "partner"
@@ -116,12 +118,33 @@ export function CounterpartNewForm() {
 
     setIsSubmitting(true)
 
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // TODO: Save to Supabase
-    // For now, redirect to counterparts list
-    router.push("/dashboard/counterparts")
+    const result = await saveCounterpartAction({
+      name: formData.name,
+      type: formData.type,
+      vat_number: formData.vat_number,
+      fiscal_code: formData.fiscal_code,
+      pec: formData.pec,
+      sdi_code: formData.sdI_code,
+      address: formData.address,
+      city: formData.city,
+      province: formData.province,
+      postal_code: formData.postal_code,
+      country: formData.country,
+      sector: formData.sector,
+      referent_name: formData.referent_name,
+      referent_email: formData.referent_email,
+      referent_phone: formData.referent_phone,
+      notes: formData.notes,
+    })
+    if (result.success) {
+      toast.success("Controparte salvata con successo")
+      router.push(result.counterpartId
+        ? `/dashboard/counterparts/${result.counterpartId}`
+        : "/dashboard/counterparts")
+    } else {
+      toast.error(result.error || "Errore durante il salvataggio")
+      setIsSubmitting(false)
+    }
   }
 
   return (

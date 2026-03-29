@@ -779,3 +779,125 @@ export async function deleteInvoiceAction(
   if (error) return { success: false, error: error.message }
   return { success: true }
 }
+
+export async function saveEmployeeAction(formData: {
+  full_name: string
+  email?: string
+  phone?: string
+  role?: string
+  department?: string
+  employee_type: string
+  hire_date?: string
+  termination_date?: string
+  fiscal_code?: string
+  iban?: string
+  ccnl?: string
+  ccnl_level?: string
+  ral?: string
+  probation_end_date?: string
+  notes?: string
+  osint_consent?: boolean
+}): Promise<{ success: boolean; employeeId?: string; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('employees')
+    .insert({
+      company_id: companyId,
+      full_name: formData.full_name,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      role: formData.role || null,
+      department: formData.department || null,
+      employee_type: formData.employee_type,
+      hire_date: formData.hire_date || null,
+      termination_date: formData.termination_date || null,
+      fiscal_code: formData.fiscal_code || null,
+      iban: formData.iban || null,
+      ccnl: formData.ccnl || null,
+      ccnl_level: formData.ccnl_level || null,
+      ral: formData.ral ? Number(formData.ral) : null,
+      probation_end_date: formData.probation_end_date || null,
+      notes: formData.notes || null,
+      osint_consent: formData.osint_consent ?? false,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, employeeId: data?.id }
+}
+
+export async function saveCounterpartAction(formData: {
+  name: string
+  type: string
+  vat_number?: string
+  fiscal_code?: string
+  pec?: string
+  sdi_code?: string
+  address?: string
+  city?: string
+  province?: string
+  postal_code?: string
+  country?: string
+  sector?: string
+  referent_name?: string
+  referent_email?: string
+  referent_phone?: string
+  notes?: string
+}): Promise<{ success: boolean; counterpartId?: string; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('counterparts')
+    .insert({
+      company_id: companyId,
+      name: formData.name,
+      type: formData.type,
+      vat_number: formData.vat_number || null,
+      fiscal_code: formData.fiscal_code || null,
+      pec: formData.pec || null,
+      sdi_code: formData.sdi_code || null,
+      address: formData.address || null,
+      city: formData.city || null,
+      province: formData.province || null,
+      cap: formData.postal_code || null,
+      country: formData.country || null,
+      sector: formData.sector || null,
+      referent_name: formData.referent_name || null,
+      referent_email: formData.referent_email || null,
+      referent_phone: formData.referent_phone || null,
+      notes: formData.notes || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, counterpartId: data?.id }
+}
+
+export async function updateBandoNotesAction(
+  bandoId: string,
+  data: { internal_notes?: string; participation_status?: string }
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+
+  const supabase = await createClient()
+  const updateData: Record<string, string | null> = {}
+  if (data.internal_notes !== undefined) updateData.internal_notes = data.internal_notes
+  if (data.participation_status !== undefined) updateData.participation_status = data.participation_status
+
+  const { error } = await supabase
+    .from('bandi')
+    .update(updateData)
+    .eq('id', bandoId)
+    .eq('company_id', companyId)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}

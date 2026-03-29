@@ -18,6 +18,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { saveEmployeeAction } from "@/lib/actions/data"
 
 type EmployeeType = "employee" | "collaborator" | "consultant" | "intern"
 
@@ -97,11 +99,16 @@ export function EmployeeNewForm() {
 
     setIsSubmitting(true)
 
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // TODO: Save to Supabase
-    router.push("/dashboard/employees")
+    const result = await saveEmployeeAction(formData)
+    if (result.success) {
+      toast.success("Dipendente salvato con successo")
+      router.push(result.employeeId
+        ? `/dashboard/employees/${result.employeeId}`
+        : "/dashboard/employees")
+    } else {
+      toast.error(result.error || "Errore durante il salvataggio")
+      setIsSubmitting(false)
+    }
   }
 
   return (

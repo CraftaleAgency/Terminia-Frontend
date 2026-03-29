@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft,
@@ -40,6 +40,8 @@ import {
   daysUntil,
 } from "@/types/models"
 import { sendChatMessageAction } from "@/lib/actions/chat"
+import { updateBandoNotesAction } from "@/lib/actions/data"
+import { toast } from "sonner"
 import type { Database } from "@/types/database"
 
 type BandoRow = Database['public']['Tables']['bandi']['Row']
@@ -145,6 +147,8 @@ export function BandoDetail({ bando }: BandoDetailProps) {
   const [aiExplanationLoading, setAiExplanationLoading] = useState(false)
   const [aiExplanationError, setAiExplanationError] = useState<string | null>(null)
   const [aiCopied, setAiCopied] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleExplainMatch = async () => {
     if (aiExplanationLoading) return
@@ -172,12 +176,40 @@ export function BandoDetail({ bando }: BandoDetailProps) {
     setTimeout(() => setAiCopied(false), 2000)
   }
 
-  const handleStatusChange = (status: ParticipationStatus) => {
+  const handleStatusChange = async (status: ParticipationStatus) => {
     setParticipationStatus(status)
+    const result = await updateBandoNotesAction(bando.id, { participation_status: status })
+    if (!result.success) {
+      toast.error(result.error || "Errore nel salvataggio dello stato")
+    }
   }
+
+  const autoSaveNotes = useCallback(async (notes: string) => {
+    const result = await updateBandoNotesAction(bando.id, { internal_notes: notes })
+    if (!result.success) {
+      toast.error(result.error || "Errore nel salvataggio delle note")
+    }
+  }, [bando.id])
 
   const handleNotesChange = (notes: string) => {
     setInternalNotes(notes)
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    notesTimerRef.current = setTimeout(() => autoSaveNotes(notes), 1000)
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    const result = await updateBandoNotesAction(bando.id, {
+      internal_notes: internalNotes,
+      participation_status: participationStatus,
+    })
+    if (result.success) {
+      toast.success("Salvato con successo")
+    } else {
+      toast.error(result.error || "Errore durante il salvataggio")
+    }
+    setIsSaving(false)
   }
 
   const days = daysUntil(bando.deadline)
@@ -696,9 +728,13 @@ export function BandoDetail({ bando }: BandoDetailProps) {
                   Ho vinto - Genera contratto
                 </button>
               )}
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-muted/30 text-foreground hover:bg-muted/50 transition-colors text-sm">
-                <Save className="size-4" />
-                Salva
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-muted/30 text-foreground hover:bg-muted/50 transition-colors text-sm disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {isSaving ? "Salvataggio..." : "Salva"}
               </button>
             </div>
           </motion.div>
