@@ -34,28 +34,40 @@ export class NemoClawClient implements INemoClawClient {
 
   private async fetch<T>(path: string, body: unknown, authToken: string): Promise<T> {
     const url = `${this.baseUrl}${path}`
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 60_000)
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      body: JSON.stringify(body),
-    })
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      let message: string
-      try {
-        const err = await response.json() as { error?: string }
-        message = err.error ?? `NemoClaw request failed (${response.status})`
-      } catch {
-        message = `NemoClaw request failed (${response.status})`
+      if (!response.ok) {
+        let message: string
+        try {
+          const err = await response.json() as { error?: string }
+          message = err.error ?? `NemoClaw request failed (${response.status})`
+        } catch {
+          message = `NemoClaw request failed (${response.status})`
+        }
+        throw new NemoClawError(message, response.status)
       }
-      throw new NemoClawError(message, response.status)
-    }
 
-    return (await response.json()) as T
+      return (await response.json()) as T
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new NemoClawError('Request timed out after 60s', 408, 'TIMEOUT')
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /** Analyze a contract document (classify → extract → risk score) */
@@ -88,54 +100,66 @@ export class NemoClawClient implements INemoClawClient {
     authToken: string,
   ): AsyncGenerator<string> {
     const url = `${this.baseUrl}/api/chat`
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      body: JSON.stringify(request),
-    })
-
-    if (!response.ok) {
-      throw new NemoClawError(`Chat request failed (${response.status})`, response.status)
-    }
-
-    if (!response.body) {
-      throw new NemoClawError('No response body for streaming')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 120_000)
 
     try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      })
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
+      if (!response.ok) {
+        throw new NemoClawError(`Chat request failed (${response.status})`, response.status)
+      }
 
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed || trimmed.startsWith(':')) continue
-          if (trimmed === 'data: [DONE]') return
+      if (!response.body) {
+        throw new NemoClawError('No response body for streaming')
+      }
 
-          if (trimmed.startsWith('data: ')) {
-            try {
-              const chunk = JSON.parse(trimmed.slice(6)) as { content?: string }
-              if (chunk.content) yield chunk.content
-            } catch {
-              // skip malformed chunk
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed || trimmed.startsWith(':')) continue
+            if (trimmed === 'data: [DONE]') return
+
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const chunk = JSON.parse(trimmed.slice(6)) as { content?: string }
+                if (chunk.content) yield chunk.content
+              } catch {
+                // skip malformed chunk
+              }
             }
           }
         }
+      } finally {
+        reader.releaseLock()
       }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new NemoClawError('Request timed out after 120s', 408, 'TIMEOUT')
+      }
+      throw err
     } finally {
-      reader.releaseLock()
+      clearTimeout(timer)
     }
   }
 
