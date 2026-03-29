@@ -135,7 +135,23 @@ export default function RegisterPage() {
           filled.add('companyName')
         }
         if (companyParty?.counterpart?.vat) {
-          updates.vatNumber = companyParty.counterpart.vat.replace(/\D/g, '').slice(0, 11)
+          const vat = companyParty.counterpart.vat.replace(/\D/g, '').slice(0, 11)
+          updates.vatNumber = vat
+          filled.add('vatNumber')
+        }
+
+        // Extract fiscal code from document for persona fisica
+        const rawText = (result.data.classification.raw_text ?? result.data.classification.contract_type ?? '').toUpperCase()
+        const cfMatch = rawText.match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
+        if (cfMatch && formData.accountType === 'person') {
+          updates.fiscalCode = cfMatch[0]
+          filled.add('fiscalCode')
+        }
+
+        // Extract P.IVA from document text (11-digit number pattern)
+        const pivaMatch = rawText.match(/(?:P\.?\s*IVA|PARTITA\s*IVA)[:\s]*(\d{11})/i)
+        if (pivaMatch) {
+          updates.vatNumber = pivaMatch[1]
           filled.add('vatNumber')
         }
 
@@ -196,7 +212,7 @@ export default function RegisterPage() {
     formDataObj.append("accountType", formData.accountType)
     formDataObj.append("fullName", formData.fullName)
     formDataObj.append("companyName", formData.accountType === "company" ? formData.companyName : formData.fullName)
-    formDataObj.append("vatNumber", formData.accountType === "company" ? formData.vatNumber : "")
+    formDataObj.append("vatNumber", formData.vatNumber || "")
     formDataObj.append("fiscalCode", formData.accountType === "person" ? formData.fiscalCode : "")
     formDataObj.append("sector", formData.accountType === "company" ? formData.sector : "Persona Fisica")
     formDataObj.append("size", formData.accountType === "company" ? formData.size : "micro")
@@ -418,6 +434,19 @@ export default function RegisterPage() {
               </p>
             </div>
 
+            {/* Shared file input — used by both company and persona fisica */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleDocumentUpload(file)
+                e.target.value = ''
+              }}
+            />
+
             {formData.accountType === "company" ? (
               <>
                 {/* Document upload area */}
@@ -441,17 +470,6 @@ export default function RegisterPage() {
                     if (file && !isAnalyzing) handleDocumentUpload(file)
                   }}
                 >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.docx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleDocumentUpload(file)
-                      e.target.value = ''
-                    }}
-                  />
 
                   {isAnalyzing ? (
                     <>
@@ -593,9 +611,75 @@ export default function RegisterPage() {
               </>
             ) : (
               <>
+                {/* Document upload area — persona fisica */}
+                <div
+                  className={cn(
+                    "rounded-xl border-2 border-dashed p-6 text-center transition-colors",
+                    isAnalyzing
+                      ? "border-primary/50 bg-primary/5"
+                      : analyzeStatus === 'success'
+                      ? "border-green-500/50 bg-green-500/5"
+                      : analyzeStatus === 'error'
+                      ? "border-red-500/30 bg-red-500/5"
+                      : "border-border/50 bg-secondary/20 hover:border-primary/50 cursor-pointer"
+                  )}
+                  onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const file = e.dataTransfer.files[0]
+                    if (file && !isAnalyzing) handleDocumentUpload(file)
+                  }}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="size-8 text-primary mx-auto mb-3 animate-spin" />
+                      <p className="text-sm font-medium text-foreground">Analisi in corso...</p>
+                      <p className="text-xs text-muted-foreground mt-1">Estrazione dati dal documento</p>
+                    </>
+                  ) : analyzeStatus === 'success' ? (
+                    <>
+                      <Check className="size-8 text-green-500 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-green-400">✅ Dati estratti automaticamente</p>
+                      <p className="text-xs text-muted-foreground mt-1">Puoi modificare i campi compilati</p>
+                    </>
+                  ) : analyzeStatus === 'error' ? (
+                    <>
+                      <FileText className="size-8 text-red-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-red-400">Non è stato possibile estrarre i dati</p>
+                      <p className="text-xs text-muted-foreground mt-1">Compila manualmente i campi sottostanti</p>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="size-8 text-primary mx-auto mb-3" />
+                      <p className="text-sm font-medium text-foreground">
+                        📄 Carica un documento di identità o Certificato P.IVA
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        per compilare automaticamente
+                      </p>
+                      <p className="text-xs text-primary/70 mt-3">
+                        Trascina qui il PDF o clicca per selezionare
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        PDF, DOCX — max 10MB
+                      </p>
+                    </>
+                  )}
+                </div>
+                {!isAnalyzing && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Oppure compila manualmente ↓
+                  </p>
+                )}
+
                 <div className="space-y-2">
                   <label htmlFor="fiscalCode" className="text-sm font-medium text-foreground">
                     Codice Fiscale
+                    {autoFilledFields.has('fiscalCode') && (
+                      <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                    )}
                   </label>
                   <Input
                     id="fiscalCode"
@@ -606,6 +690,37 @@ export default function RegisterPage() {
                     className="h-12 bg-secondary/50 border-border/40"
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="personVat" className="text-sm font-medium text-foreground">
+                    Partita IVA <span className="text-xs text-muted-foreground">(opzionale)</span>
+                    {autoFilledFields.has('vatNumber') && (
+                      <span className="text-xs text-primary/70 ml-2">🤖 Auto</span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="personVat"
+                      type="text"
+                      placeholder="12345678901"
+                      value={formData.vatNumber}
+                      onChange={(e) => setFormData({ ...formData, vatNumber: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                      className="h-12 bg-secondary/50 border-border/40 pr-10"
+                    />
+                    {formData.vatNumber && (
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                        {isVatValid ? (
+                          <Check className="size-4 text-primary" />
+                        ) : (
+                          <X className="size-4 text-destructive" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {formData.vatNumber && !isVatValid && (
+                    <p className="text-xs text-destructive">La P.IVA deve essere di 11 cifre</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
