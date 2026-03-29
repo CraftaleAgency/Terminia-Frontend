@@ -135,13 +135,16 @@ export default function RegisterPage() {
         const filled = new Set<string>()
         const updates: Record<string, string> = {}
         const sourceText = (result.data.source_text ?? '').toUpperCase()
+        const registrationProfile = result.data.registration_profile
 
         const companyParty = result.data.classification.parties
-        if (companyParty?.company) {
-          updates.companyName = companyParty.company
+        const companyName = registrationProfile?.company_name ?? companyParty?.company
+        if (companyName) {
+          updates.companyName = companyName
           filled.add('companyName')
         }
-        const rawVat = companyParty?.counterpart?.vat
+        const rawVat = registrationProfile?.vat_number
+          ?? companyParty?.counterpart?.vat
           ?? sourceText.match(/(?:PARTITA\s*IVA|P\.?\s*IVA|PIVA|VAT)\D{0,12}(\d{11})/)?.[1]
           ?? sourceText.match(/\b\d{11}\b/)?.[0]
         if (rawVat) {
@@ -153,7 +156,12 @@ export default function RegisterPage() {
         // Extract fiscal code from document for persona fisica
         const rawText = sourceText || (result.data.classification.contract_type ?? '').toUpperCase()
         const cfMatch = rawText.match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
-        const cfFromParties = companyParty?.counterpart?.cf
+        const cfFromParties = registrationProfile?.fiscal_code ?? companyParty?.counterpart?.cf
+        const city = registrationProfile?.city?.trim()
+        if (city) {
+          updates.city = city
+          filled.add('city')
+        }
         if (formData.accountType === 'person') {
           if (cfFromParties) {
             updates.fiscalCode = cfFromParties
@@ -164,7 +172,13 @@ export default function RegisterPage() {
           }
         }
 
-        const contractType = (result.data.classification.contract_type ?? '').toLowerCase()
+        const aiSector = registrationProfile?.sector
+        if (formData.accountType === 'company' && aiSector) {
+          updates.sector = aiSector
+          filled.add('sector')
+        }
+
+        const contractType = `${result.data.classification.contract_type ?? ''} ${sourceText}`.toLowerCase()
         const sectorKeywords: [string, string][] = [
           ['informatica', 'Informatica e Tecnologia'],
           ['tecnologia', 'Informatica e Tecnologia'],
@@ -185,11 +199,13 @@ export default function RegisterPage() {
           ['sanitario', 'Sanitario'],
           ['medico', 'Sanitario'],
         ]
-        for (const [kw, sector] of sectorKeywords) {
-          if (contractType.includes(kw)) {
-            updates.sector = sector
-            filled.add('sector')
-            break
+        if (formData.accountType === 'company' && !updates.sector) {
+          for (const [kw, sector] of sectorKeywords) {
+            if (contractType.includes(kw)) {
+              updates.sector = sector
+              filled.add('sector')
+              break
+            }
           }
         }
 
