@@ -29,4 +29,4 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 USER nextjs
 EXPOSE 3004
-CMD ["pnpm", "run", "start", "--", "-p", "3004", "-H", "0.0.0.0"]
+CMD ["node_modules/.bin/next", "start"]

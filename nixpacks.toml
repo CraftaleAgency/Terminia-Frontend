@@ -5,7 +5,7 @@ cmds = ["pnpm install"]
 cmds = ["pnpm run build"]
 
 [start]
-cmd = "pnpm run start -- -p ${PORT:-3004} -H 0.0.0.0"
+cmd = "node_modules/.bin/next start"
 
 [variables]
 NODE_ENV = "production"
