@@ -141,18 +141,17 @@ export default function RegisterPage() {
         }
 
         // Extract fiscal code from document for persona fisica
-        const rawText = (result.data.classification.raw_text ?? result.data.classification.contract_type ?? '').toUpperCase()
+        const rawText = (result.data.classification.contract_type ?? '').toUpperCase()
         const cfMatch = rawText.match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
-        if (cfMatch && formData.accountType === 'person') {
-          updates.fiscalCode = cfMatch[0]
-          filled.add('fiscalCode')
-        }
-
-        // Extract P.IVA from document text (11-digit number pattern)
-        const pivaMatch = rawText.match(/(?:P\.?\s*IVA|PARTITA\s*IVA)[:\s]*(\d{11})/i)
-        if (pivaMatch) {
-          updates.vatNumber = pivaMatch[1]
-          filled.add('vatNumber')
+        const cfFromParties = companyParty?.counterpart?.cf
+        if (formData.accountType === 'person') {
+          if (cfFromParties) {
+            updates.fiscalCode = cfFromParties
+            filled.add('fiscalCode')
+          } else if (cfMatch) {
+            updates.fiscalCode = cfMatch[0]
+            filled.add('fiscalCode')
+          }
         }
 
         const contractType = (result.data.classification.contract_type ?? '').toLowerCase()
