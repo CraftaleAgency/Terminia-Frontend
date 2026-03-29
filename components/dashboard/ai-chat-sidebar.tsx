@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   X,
   Send,
@@ -21,6 +23,7 @@ import {
   Pencil,
   Trash2,
   MessageSquare,
+  BrainCircuit,
   type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -41,6 +44,7 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  thinking?: string[]
   timestamp: Date
 }
 
@@ -82,6 +86,52 @@ const personalQuestions: SuggestedQuestion[] = [
 ]
 
 const ACCEPTED_FILE_TYPES = ".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.gif"
+
+// ── Thinking block component ────────────────────────────────────────────────
+
+function ThinkingBlock({ steps, isStreaming }: { steps: string[]; isStreaming: boolean }) {
+  const [open, setOpen] = useState(isStreaming) // open while streaming, close-able after
+
+  // Auto-collapse when the response starts arriving
+  useEffect(() => {
+    if (!isStreaming) setOpen(false)
+  }, [isStreaming])
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-muted/20 text-xs overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <BrainCircuit className={cn("size-3.5 flex-shrink-0", isStreaming && "animate-pulse text-primary")} />
+        <span className="flex-1 text-left font-medium">
+          {isStreaming ? "Elaborazione in corso..." : "Ragionamento"}
+        </span>
+        {open ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: "auto" }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 space-y-1 border-t border-border/30">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2 text-muted-foreground py-0.5">
+                  <span className="mt-0.5 size-1.5 rounded-full bg-primary/40 flex-shrink-0" />
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 function relativeTime(dateStr: string): string {
   const now = Date.now()
@@ -244,13 +294,13 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     setAttachment(null)
     try {
       const result = await getConversationMessagesAction(conv.id)
-      if (Array.isArray(result)) {
+      if (result.success) {
         setMessages(
-          result.map((m: ChatMessage & { id?: string; created_at?: string }) => ({
-            id: m.id ?? crypto.randomUUID(),
+          result.messages.map(m => ({
+            id: m.id,
             role: m.role as "user" | "assistant",
             content: m.content,
-            timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+            timestamp: new Date(m.created_at),
           }))
         )
       }
@@ -412,8 +462,15 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
 
             if (trimmed.startsWith("data: ")) {
               try {
-                const chunk = JSON.parse(trimmed.slice(6)) as { content?: string }
-                if (chunk.content) {
+                const chunk = JSON.parse(trimmed.slice(6)) as { content?: string; type?: string }
+                if (chunk.type === "thinking" && chunk.content) {
+                  // Accumulate thinking steps in the assistant message
+                  setMessages(prev => prev.map(m =>
+                    m.id === assistantMessageId
+                      ? { ...m, thinking: [...(m.thinking ?? []), chunk.content!] }
+                      : m
+                  ))
+                } else if (chunk.content) {
                   setMessages(prev => prev.map(m =>
                     m.id === assistantMessageId
                       ? { ...m, content: m.content + chunk.content }
@@ -674,19 +731,52 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
                           <Bot className="size-4 text-white" />
                         )}
                       </div>
-                      <div className={cn(
-                        "flex-1 rounded-2xl p-4 max-w-[85%]",
-                        message.role === "user"
-                          ? "bg-primary text-white"
-                          : "bg-muted/30 border border-border/30"
-                      )}>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <p className={cn(
-                          "text-[10px] mt-2",
-                          message.role === "user" ? "text-white/70" : "text-muted-foreground"
+                      <div className="flex-1 flex flex-col gap-1.5 max-w-[85%]">
+                        {/* Thinking block — collapsible, shown for assistant messages */}
+                        {message.role === "assistant" && message.thinking && message.thinking.length > 0 && (
+                          <ThinkingBlock steps={message.thinking} isStreaming={!message.content.trim()} />
+                        )}
+                        {/* Message bubble */}
+                        <div className={cn(
+                          "rounded-2xl p-4",
+                          message.role === "user"
+                            ? "bg-primary text-white"
+                            : "bg-muted/30 border border-border/30"
                         )}>
-                          {message.timestamp.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
+                          {message.role === "assistant" ? (
+                            <div className="text-sm text-foreground
+                              [&>p]:my-1 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0
+                              [&>ul]:my-1 [&>ul]:pl-4 [&>ul>li]:my-0.5 [&>ul>li]:list-disc
+                              [&>ol]:my-1 [&>ol]:pl-4 [&>ol>li]:my-0.5 [&>ol>li]:list-decimal
+                              [&>h1]:text-base [&>h1]:font-semibold [&>h1]:my-2
+                              [&>h2]:text-sm [&>h2]:font-semibold [&>h2]:my-1.5
+                              [&>h3]:text-sm [&>h3]:font-medium [&>h3]:my-1
+                              [&>strong]:font-semibold
+                              [&>a]:text-primary [&>a]:no-underline [&>a:hover]:underline
+                              [&>code]:bg-muted/50 [&>code]:rounded [&>code]:px-1 [&>code]:text-xs [&>code]:font-mono
+                              [&>pre]:bg-muted/50 [&>pre]:rounded-lg [&>pre]:p-3 [&>pre]:text-xs [&>pre]:overflow-auto
+                              [&>blockquote]:border-l-2 [&>blockquote]:border-primary/40 [&>blockquote]:pl-3 [&>blockquote]:text-muted-foreground [&>blockquote]:italic
+                              [&_table]:w-full [&_table]:text-xs [&_td]:border [&_td]:border-border/30 [&_td]:px-2 [&_td]:py-1
+                              [&_th]:border [&_th]:border-border/30 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-muted/30 [&_th]:font-medium
+                              [&_hr]:border-border/30 [&_hr]:my-2">
+                              {message.content ? (
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {message.content}
+                                </ReactMarkdown>
+                              ) : (
+                                <span className="text-muted-foreground italic text-xs">Elaborazione in corso...</span>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          )}
+                          <p className={cn(
+                            "text-[10px] mt-2",
+                            message.role === "user" ? "text-white/70" : "text-muted-foreground"
+                          )}>
+                            {message.timestamp.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
