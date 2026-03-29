@@ -39,7 +39,7 @@ export async function fetchContracts(): Promise<(ContractRow & { counterpart_nam
     .select(`
       *,
       counterparts(name),
-      employees(full_name)
+      employees!contracts_employee_id_fkey(full_name)
     `)
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
