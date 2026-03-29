@@ -1,0 +1,28 @@
+services:
+  terminia-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: terminia-frontend
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      - HOSTNAME=0.0.0.0
+      - PORT=3004
+      - NODE_ENV=production
+      - NEMOCLAW_API_URL=http://terminia-api:3100
+      - NEXT_PUBLIC_SUPABASE_URL=https://supabase-terminia.pezserv.org
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJFUzI1NiIsImtpZCI6ImI4MTI2OWYxLTIxZDgtNGYyZS1iNzE5LWMyMjQwYTg0MGQ5MCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjIwODk1NTY3NDl9.8UvtI4u710u_MjVYh1I3Zb9Ut5Wmug0u4xpX3sL2jkvV8bilhj5SutUpa1Q44S9XrXhJVjC5Zt0GgPDhlGYQPQ
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3004/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  dokploy-network:
+    external: true
