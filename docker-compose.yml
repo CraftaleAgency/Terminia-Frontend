@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEMOCLAW_API_URL=http://terminia-api:3100
+        - NEXT_PUBLIC_SUPABASE_URL=https://supabase-terminia.pezserv.org
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJFUzI1NiIsImtpZCI6ImI4MTI2OWYxLTIxZDgtNGYyZS1iNzE5LWMyMjQwYTg0MGQ5MCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjIwODk1NTY3NDl9.8UvtI4u710u_MjVYh1I3Zb9Ut5Wmug0u4xpX3sL2jkvV8bilhj5SutUpa1Q44S9XrXhJVjC5Zt0GgPDhlGYQPQ
     container_name: terminia-frontend
     restart: unless-stopped
     ports:
