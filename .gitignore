@@ -16,4 +16,4 @@ node_modules
 .DS_Store
 
 # TypeScript build cache
-*.tsbuildinfo
+*.tsbuildinfosupabase/supabase/.temp/

@@ -1,0 +1,809 @@
+-- ============================================================
+-- TERMINIA — 001 DATABASE SCHEMA
+-- Tabelle, indici, views e estensioni
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- ============================================================
+-- 1. COMPANIES
+-- ============================================================
+CREATE TABLE public.companies (
+  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                    TEXT NOT NULL,
+  vat_number              TEXT UNIQUE,
+  fiscal_code             TEXT,
+  address                 TEXT,
+  city                    TEXT,
+  province                TEXT,
+  cap                     TEXT,
+  country                 TEXT DEFAULT 'IT',
+  sector                  TEXT,
+  ateco_code              TEXT,
+  size                    TEXT CHECK (size IN ('micro','small','medium','large')),
+  employee_count          INT,
+  annual_revenue          NUMERIC,
+  certifications          TEXT[] DEFAULT '{}'::TEXT[],
+  sdi_code                TEXT,
+  pec                     TEXT,
+  past_pa_contracts       BOOLEAN DEFAULT FALSE,
+  past_pa_contracts_value NUMERIC,
+  geographic_operations   TEXT[] DEFAULT '{}'::TEXT[],
+  created_by_ai           BOOLEAN DEFAULT FALSE,
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 2. USERS (collegata a auth.users)
+-- ============================================================
+CREATE TABLE public.users (
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  company_id    UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  email         TEXT UNIQUE NOT NULL,
+  full_name     TEXT,
+  role          TEXT DEFAULT 'viewer' CHECK (role IN ('admin','manager','viewer')),
+  avatar_url    TEXT,
+  last_login_at TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 3. COUNTERPARTS (clienti, fornitori, partner)
+-- Pagina: /dashboard/counterparts
+-- ============================================================
+CREATE TABLE public.counterparts (
+  id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id               UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  type                     TEXT NOT NULL CHECK (type IN ('supplier','client','partner')),
+  name                     TEXT NOT NULL,
+  vat_number               TEXT,
+  fiscal_code              TEXT,
+  address                  TEXT,
+  city                     TEXT,
+  province                 TEXT,
+  cap                      TEXT,
+  country                  TEXT DEFAULT 'IT',
+  sector                   TEXT,
+  pec                      TEXT,
+  sdi_code                 TEXT,
+  referent_name            TEXT,
+  referent_email           TEXT,
+  referent_phone           TEXT,
+  total_exposure           NUMERIC DEFAULT 0,
+  total_revenue            NUMERIC DEFAULT 0,
+  payment_avg_days         INT,
+  payment_score            INT CHECK (payment_score BETWEEN 0 AND 100),
+  reliability_score        INT CHECK (reliability_score BETWEEN 0 AND 100),
+  reliability_label        TEXT CHECK (reliability_label IN ('excellent','good','warning','risk','unknown')) DEFAULT 'unknown',
+  reliability_updated_at   TIMESTAMPTZ,
+  verification_json        JSONB DEFAULT '{}'::JSONB,
+  score_legal              INT DEFAULT 0,
+  score_contributory       INT DEFAULT 0,
+  score_reputation         INT DEFAULT 0,
+  score_solidity           INT DEFAULT 0,
+  score_consistency        INT DEFAULT 0,
+  has_bankruptcy           BOOLEAN DEFAULT FALSE,
+  has_anac_annotations     BOOLEAN DEFAULT FALSE,
+  vat_verified             BOOLEAN DEFAULT FALSE,
+  notes                    TEXT,
+  tags                     TEXT[] DEFAULT '{}'::TEXT[],
+  created_by_ai            BOOLEAN DEFAULT FALSE,
+  created_at               TIMESTAMPTZ DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 4. EMPLOYEES (dipendenti, collaboratori)
+-- Pagina: /dashboard/employees
+-- ============================================================
+CREATE TABLE public.employees (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id            UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  full_name             TEXT NOT NULL,
+  fiscal_code           TEXT,
+  birth_date            DATE,
+  birth_place           TEXT,
+  address               TEXT,
+  city                  TEXT,
+  province              TEXT,
+  email                 TEXT,
+  phone                 TEXT,
+  iban                  TEXT,
+  employee_type         TEXT CHECK (employee_type IN (
+                          'employee','collaborator','consultant',
+                          'intern','apprentice','vat_number'
+                        )),
+  role                  TEXT,
+  department            TEXT,
+  hire_date             DATE,
+  termination_date      DATE,
+  current_contract_id   UUID,
+  ccnl                  TEXT,
+  ccnl_level            TEXT,
+  ccnl_version_date     DATE,
+  ral                   NUMERIC,
+  gross_cost            NUMERIC,
+  notice_days           INT,
+  meal_voucher_daily    NUMERIC,
+  company_car           BOOLEAN DEFAULT FALSE,
+  company_phone         BOOLEAN DEFAULT FALSE,
+  welfare_budget        NUMERIC,
+  other_benefits        JSONB DEFAULT '{}'::JSONB,
+  fixed_term_count      INT DEFAULT 0,
+  fixed_term_months     INT DEFAULT 0,
+  medical_exam_date     DATE,
+  safety_training_date  DATE,
+  probation_end_date    DATE,
+  fiscal_code_valid     BOOLEAN,
+  fiscal_code_match     BOOLEAN,
+  iban_valid            BOOLEAN,
+  data_verified_at      TIMESTAMPTZ,
+  osint_consent         BOOLEAN DEFAULT FALSE,
+  osint_consent_date    TIMESTAMPTZ,
+  notes                 TEXT,
+  created_by_ai         BOOLEAN DEFAULT FALSE,
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 5. CONTRACTS
+-- Pagina: /dashboard/contracts
+-- ============================================================
+CREATE TABLE public.contracts (
+  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id              UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_type           TEXT NOT NULL CHECK (contract_type IN (
+                            'service_supply','goods_supply','framework',
+                            'nda','agency','partnership',
+                            'permanent','fixed_term','part_time',
+                            'cococo','vat_number','internship','apprenticeship'
+                          )),
+  counterpart_id          UUID REFERENCES public.counterparts(id),
+  employee_id             UUID REFERENCES public.employees(id),
+  parent_contract_id      UUID REFERENCES public.contracts(id),
+  contract_relation       TEXT CHECK (contract_relation IN (
+                            'parent','subcontract','addendum','renewal','amendment'
+                          )),
+  status                  TEXT DEFAULT 'draft' CHECK (status IN (
+                            'draft','negotiating','active',
+                            'expiring','renewed','terminated','suspended'
+                          )),
+  value                   NUMERIC,
+  value_type              TEXT CHECK (value_type IN ('total','annual','monthly','hourly')),
+  currency                TEXT DEFAULT 'EUR',
+  payment_terms           INT,
+  payment_frequency       TEXT CHECK (payment_frequency IN (
+                            'monthly','quarterly','milestone','one_time','annual'
+                          )),
+  vat_regime              TEXT CHECK (vat_regime IN (
+                            'ordinary','reverse_charge','exempt','out_of_scope','split_payment'
+                          )),
+  vat_rate                NUMERIC DEFAULT 22,
+  withholding_tax         BOOLEAN DEFAULT FALSE,
+  withholding_rate        NUMERIC,
+  istat_indexation        BOOLEAN DEFAULT FALSE,
+  istat_indexation_month  INT,
+  surety_bond_required    BOOLEAN DEFAULT FALSE,
+  surety_bond_amount      NUMERIC,
+  surety_bond_expiry      DATE,
+  surety_bond_issuer      TEXT,
+  start_date              DATE,
+  end_date                DATE,
+  signed_date             DATE,
+  effective_date          DATE,
+  auto_renewal            BOOLEAN DEFAULT FALSE,
+  renewal_notice_days     INT,
+  renewal_duration_months INT,
+  governing_law           TEXT DEFAULT 'IT',
+  jurisdiction            TEXT,
+  language                TEXT DEFAULT 'it',
+  is_public_admin         BOOLEAN DEFAULT FALSE,
+  risk_score              INT CHECK (risk_score BETWEEN 0 AND 100),
+  ai_summary              TEXT,
+  ai_extracted_at         TIMESTAMPTZ,
+  ai_confidence           NUMERIC CHECK (ai_confidence BETWEEN 0 AND 1),
+  raw_text                TEXT,
+  embedding               VECTOR(1536),
+  version                 INT DEFAULT 1,
+  is_current_version      BOOLEAN DEFAULT TRUE,
+  title                   TEXT,
+  reference_number        TEXT,
+  tags                    TEXT[] DEFAULT '{}'::TEXT[],
+  notes                   TEXT,
+  created_by              UUID REFERENCES public.users(id),
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ DEFAULT NOW(),
+
+  CONSTRAINT check_single_actor CHECK (
+    (counterpart_id IS NOT NULL AND employee_id IS NULL) OR
+    (counterpart_id IS NULL AND employee_id IS NOT NULL) OR
+    (counterpart_id IS NULL AND employee_id IS NULL)
+  )
+);
+
+-- FK circolare employees → contracts
+ALTER TABLE public.employees
+  ADD CONSTRAINT fk_current_contract
+  FOREIGN KEY (current_contract_id) REFERENCES public.contracts(id)
+  DEFERRABLE INITIALLY DEFERRED;
+
+-- ============================================================
+-- 6. CLAUSES (clausole contrattuali)
+-- ============================================================
+CREATE TABLE public.clauses (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id          UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  clause_type          TEXT CHECK (clause_type IN (
+                         'penalty','liability_limit','termination',
+                         'payment','non_compete','confidentiality',
+                         'renewal','warranty','force_majeure',
+                         'ip_ownership','governing_law',
+                         'sla','data_protection','other'
+                       )),
+  original_text        TEXT NOT NULL,
+  simplified_text      TEXT,
+  page_number          INT,
+  risk_level           TEXT CHECK (risk_level IN ('low','medium','high','critical')),
+  risk_explanation     TEXT,
+  ai_flag              TEXT CHECK (ai_flag IN (
+                         'anomaly','ambiguity','missing_critical','unfavorable'
+                       )),
+  ai_suggestion        TEXT,
+  benchmark_comparison TEXT,
+  created_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 7. OBLIGATIONS (obblighi contrattuali)
+-- ============================================================
+CREATE TABLE public.obligations (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id         UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  party               TEXT NOT NULL CHECK (party IN ('mine','theirs')),
+  description         TEXT NOT NULL,
+  obligation_type     TEXT CHECK (obligation_type IN (
+                        'delivery','payment','report','notification',
+                        'renewal_notice','compliance','maintenance',
+                        'approval','other'
+                      )),
+  due_date            DATE,
+  recurrence          TEXT CHECK (recurrence IS NULL OR recurrence IN ('monthly','quarterly','annual')),
+  recurrence_end_date DATE,
+  status              TEXT DEFAULT 'pending' CHECK (status IN (
+                        'pending','completed','overdue','waived'
+                      )),
+  completed_at        TIMESTAMPTZ,
+  completed_by        UUID REFERENCES public.users(id),
+  completion_note     TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 8. MILESTONES
+-- ============================================================
+CREATE TABLE public.milestones (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id       UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  title             TEXT NOT NULL,
+  description       TEXT,
+  due_date          DATE,
+  status            TEXT DEFAULT 'upcoming' CHECK (status IN (
+                      'upcoming','in_progress','delivered',
+                      'approved','invoiceable','invoiced'
+                    )),
+  amount            NUMERIC,
+  requires_approval BOOLEAN DEFAULT FALSE,
+  approval_contact  TEXT,
+  delivery_date     DATE,
+  approval_date     DATE,
+  invoice_id        UUID,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 9. INVOICES (fatture attive e passive)
+-- Pagina: /dashboard/invoices
+-- ============================================================
+CREATE TABLE public.invoices (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id            UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_id           UUID REFERENCES public.contracts(id),
+  counterpart_id        UUID REFERENCES public.counterparts(id),
+  milestone_id          UUID REFERENCES public.milestones(id),
+  invoice_type          TEXT NOT NULL CHECK (invoice_type IN ('active','passive')),
+  invoice_number        TEXT,
+  invoice_date          DATE,
+  due_date              DATE,
+  amount_net            NUMERIC NOT NULL,
+  vat_rate              NUMERIC DEFAULT 22,
+  vat_amount            NUMERIC,
+  amount_gross          NUMERIC,
+  withholding_amount    NUMERIC,
+  amount_payable        NUMERIC,
+  currency              TEXT DEFAULT 'EUR',
+  pa_protocol           TEXT,
+  sdi_status            TEXT CHECK (sdi_status IN (
+                          'draft','pending','delivered',
+                          'accepted','rejected','not_applicable'
+                        )) DEFAULT 'draft',
+  sdi_identifier        TEXT,
+  sdi_error_code        TEXT,
+  sdi_error_description TEXT,
+  payment_date          DATE,
+  payment_status        TEXT DEFAULT 'unpaid' CHECK (payment_status IN (
+                          'unpaid','partial','paid','overdue','disputed'
+                        )),
+  file_url              TEXT,
+  notes                 TEXT,
+  created_by            UUID REFERENCES public.users(id),
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- FK milestone → invoice
+ALTER TABLE public.milestones
+  ADD CONSTRAINT fk_milestone_invoice
+  FOREIGN KEY (invoice_id) REFERENCES public.invoices(id);
+
+-- ============================================================
+-- 10. SCOPE ITEMS
+-- ============================================================
+CREATE TABLE public.scope_items (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id    UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  description    TEXT NOT NULL,
+  item_type      TEXT CHECK (item_type IN ('included','excluded','extra_detected')),
+  quantity       NUMERIC,
+  unit           TEXT CHECK (unit IN ('hours','units','sessions','pages','days','other')),
+  unit_price     NUMERIC,
+  detected_by_ai BOOLEAN DEFAULT FALSE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 11. CHANGE REQUESTS
+-- ============================================================
+CREATE TABLE public.change_requests (
+  id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id            UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  title                  TEXT NOT NULL,
+  description            TEXT,
+  additional_value       NUMERIC,
+  scope_item_ids         UUID[] DEFAULT '{}'::UUID[],
+  status                 TEXT DEFAULT 'draft' CHECK (status IN (
+                           'draft','sent','approved','rejected'
+                         )),
+  sent_at                TIMESTAMPTZ,
+  approved_at            TIMESTAMPTZ,
+  resulting_amendment_id UUID REFERENCES public.contracts(id),
+  created_by             UUID REFERENCES public.users(id),
+  created_at             TIMESTAMPTZ DEFAULT NOW(),
+  updated_at             TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 12. CONTRACT DOCUMENTS
+-- ============================================================
+CREATE TABLE public.contract_documents (
+  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id        UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  file_name          TEXT NOT NULL,
+  file_url           TEXT NOT NULL,
+  file_size          INT,
+  file_type          TEXT CHECK (file_type IN ('pdf','docx','xlsx','other')),
+  document_role      TEXT CHECK (document_role IN (
+                       'original','signed','amendment',
+                       'addendum','attachment','correspondence'
+                     )),
+  version            INT DEFAULT 1,
+  is_current         BOOLEAN DEFAULT TRUE,
+  uploaded_by        UUID REFERENCES public.users(id),
+  uploaded_at        TIMESTAMPTZ DEFAULT NOW(),
+  signature_status   TEXT CHECK (signature_status IN ('pending','signed')),
+  signed_at          TIMESTAMPTZ,
+  signature_provider TEXT CHECK (signature_provider IN ('docusign','namirial'))
+);
+
+-- ============================================================
+-- 13. GENERATED DOCUMENTS
+-- ============================================================
+CREATE TABLE public.generated_documents (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id     UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_id    UUID REFERENCES public.contracts(id),
+  counterpart_id UUID REFERENCES public.counterparts(id),
+  employee_id    UUID REFERENCES public.employees(id),
+  document_type  TEXT NOT NULL CHECK (document_type IN (
+                   'termination_notice','renewal_notice',
+                   'payment_reminder','formal_notice',
+                   'change_request_doc','contract_amendment',
+                   'nda_request','dpa_gdpr',
+                   'hiring_letter','extension_letter',
+                   'salary_increase','disciplinary_notice',
+                   'termination_letter','non_compete_reminder',
+                   'participation_intent','bid_clarification'
+                 )),
+  content_json   JSONB DEFAULT '{}'::JSONB,
+  generated_text TEXT,
+  file_url       TEXT,
+  status         TEXT DEFAULT 'draft' CHECK (status IN (
+                   'draft','reviewed','sent','signed'
+                 )),
+  generated_by   UUID REFERENCES public.users(id),
+  sent_at        TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 14. GDPR RECORDS
+-- ============================================================
+CREATE TABLE public.gdpr_records (
+  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id              UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_id             UUID REFERENCES public.contracts(id),
+  counterpart_id          UUID REFERENCES public.counterparts(id),
+  is_data_processor       BOOLEAN DEFAULT FALSE,
+  is_data_controller      BOOLEAN DEFAULT FALSE,
+  data_categories         TEXT[] DEFAULT '{}'::TEXT[],
+  processing_purposes     TEXT,
+  retention_period_months INT,
+  dpa_signed              BOOLEAN DEFAULT FALSE,
+  dpa_date                DATE,
+  dpa_document_id         UUID REFERENCES public.contract_documents(id),
+  sub_processors          TEXT[] DEFAULT '{}'::TEXT[],
+  last_review_date        DATE,
+  created_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 15. ALERTS (notifiche e scadenze)
+-- ============================================================
+CREATE TABLE public.alerts (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id        UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_id       UUID REFERENCES public.contracts(id),
+  counterpart_id    UUID REFERENCES public.counterparts(id),
+  employee_id       UUID REFERENCES public.employees(id),
+  bando_id          UUID,
+  milestone_id      UUID REFERENCES public.milestones(id),
+  invoice_id        UUID REFERENCES public.invoices(id),
+  alert_type        TEXT NOT NULL CHECK (alert_type IN (
+                      'auto_renewal','contract_expiry','obligation_due',
+                      'counterpart_obligation_overdue','payment_expected',
+                      'fixed_term_expiry','fixed_term_limit',
+                      'medical_exam_due','safety_training_due',
+                      'invoice_not_issued','payment_overdue',
+                      'exposure_threshold','sdi_rejected',
+                      'new_bando_match','bando_deadline',
+                      'dpa_missing','gdpr_review_due',
+                      'reliability_score_drop','milestone_approaching',
+                      'istat_indexation_due','surety_bond_expiry',
+                      'ccnl_renewed','fringe_benefit_threshold',
+                      'non_compete_expiry','probation_ending'
+                    )),
+  priority          TEXT NOT NULL CHECK (priority IN ('critical','high','medium','low')),
+  title             TEXT NOT NULL,
+  description       TEXT,
+  trigger_date      TIMESTAMPTZ NOT NULL,
+  triggered_at      TIMESTAMPTZ,
+  status            TEXT DEFAULT 'pending' CHECK (status IN (
+                      'pending','handled','snoozed','escalated','dismissed'
+                    )),
+  handled_by        UUID REFERENCES public.users(id),
+  handled_at        TIMESTAMPTZ,
+  handle_note       TEXT,
+  snoozed_until     TIMESTAMPTZ,
+  escalated_to      UUID REFERENCES public.users(id),
+  escalated_at      TIMESTAMPTZ,
+  escalation_reason TEXT,
+  notified_via      TEXT[] DEFAULT '{}'::TEXT[],
+  notified_at       TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 16. BANDI (gare pubbliche)
+-- Pagina: /dashboard/bandi
+-- ============================================================
+CREATE TABLE public.bandi (
+  id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id               UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  source                   TEXT NOT NULL CHECK (source IN (
+                             'anac','ted_europa','regione_lombardia',
+                             'regione_lazio','regione_piemonte',
+                             'invitalia','mimit','consip',
+                             'camera_commercio','inps','other'
+                           )),
+  source_label             TEXT,
+  external_id              TEXT,
+  cig                      TEXT,
+  cup                      TEXT,
+  source_url               TEXT NOT NULL,
+  authority_name           TEXT NOT NULL,
+  authority_type           TEXT CHECK (authority_type IN (
+                             'comune','provincia','regione','ministero',
+                             'ente_pubblico','azienda_sanitaria',
+                             'universita','other'
+                           )),
+  authority_code           TEXT,
+  title                    TEXT NOT NULL,
+  description              TEXT,
+  object                   TEXT,
+  cpv_codes                TEXT[] DEFAULT '{}'::TEXT[],
+  nuts_code                TEXT,
+  procedure_type           TEXT CHECK (procedure_type IN (
+                             'open','negotiated','restricted',
+                             'competitive_dialogue','direct_award'
+                           )),
+  contract_category        TEXT CHECK (contract_category IN (
+                             'services','goods','works','mixed'
+                           )),
+  award_criteria           TEXT CHECK (award_criteria IN (
+                             'lowest_price','best_offer'
+                           )),
+  base_value               NUMERIC,
+  estimated_value          NUMERIC,
+  currency                 TEXT DEFAULT 'EUR',
+  lot_count                INT DEFAULT 1,
+  lots_json                JSONB DEFAULT '[]'::JSONB,
+  publication_date         DATE,
+  deadline                 TIMESTAMPTZ NOT NULL,
+  site_visit_date          TIMESTAMPTZ,
+  clarifications_deadline  TIMESTAMPTZ,
+  award_date               DATE,
+  requirements_json        JSONB DEFAULT '{}'::JSONB,
+  documents_required       TEXT[] DEFAULT '{}'::TEXT[],
+  technical_docs_url       TEXT,
+  match_score              INT CHECK (match_score BETWEEN 0 AND 100),
+  match_explanation        TEXT,
+  match_breakdown          JSONB DEFAULT '{}'::JSONB,
+  score_sector             INT DEFAULT 0,
+  score_size               INT DEFAULT 0,
+  score_geo                INT DEFAULT 0,
+  score_requirements       INT DEFAULT 0,
+  score_feasibility        INT DEFAULT 0,
+  gap_analysis_json        JSONB DEFAULT '{}'::JSONB,
+  checklist_json           JSONB DEFAULT '[]'::JSONB,
+  company_profile_snapshot JSONB DEFAULT '{}'::JSONB,
+  bando_embedding          VECTOR(1536),
+  subappalto_allowed       BOOLEAN DEFAULT FALSE,
+  subappalto_max_pct       NUMERIC,
+  rti_allowed              BOOLEAN DEFAULT TRUE,
+  rti_mandatory            BOOLEAN DEFAULT FALSE,
+  rti_partner_ids          UUID[] DEFAULT '{}'::UUID[],
+  participation_status     TEXT DEFAULT 'new' CHECK (participation_status IN (
+                             'new','saved','evaluating','participating',
+                             'submitted','won','lost','withdrawn'
+                           )),
+  internal_notes           TEXT,
+  winner_name              TEXT,
+  winner_vat               TEXT,
+  awarded_value            NUMERIC,
+  resulting_contract_id    UUID REFERENCES public.contracts(id),
+  alert_sent               BOOLEAN DEFAULT FALSE,
+  alert_sent_at            TIMESTAMPTZ,
+  scraped_at               TIMESTAMPTZ DEFAULT NOW(),
+  last_updated_at          TIMESTAMPTZ DEFAULT NOW(),
+  is_active                BOOLEAN DEFAULT TRUE,
+
+  UNIQUE(company_id, external_id, source)
+);
+
+-- FK alerts → bandi
+ALTER TABLE public.alerts
+  ADD CONSTRAINT fk_alert_bando
+  FOREIGN KEY (bando_id) REFERENCES public.bandi(id);
+
+-- ============================================================
+-- 17. AI INTERVIEWS (gestione upload documenti)
+-- ============================================================
+CREATE TABLE public.ai_interviews (
+  id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id             UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  uploaded_by            UUID REFERENCES public.users(id),
+  original_filename      TEXT,
+  file_url               TEXT,
+  parsed_text            TEXT,
+  initial_classification TEXT,
+  initial_confidence     NUMERIC CHECK (initial_confidence BETWEEN 0 AND 1),
+  final_classification   TEXT CHECK (final_classification IN (
+                           'employee','supplier','client','partner','bando','unknown'
+                         )),
+  routing_was_automatic  BOOLEAN DEFAULT FALSE,
+  questions_answers      JSONB DEFAULT '[]'::JSONB,
+  status                 TEXT DEFAULT 'pending' CHECK (status IN (
+                           'pending','interviewing','confirmed','failed'
+                         )),
+  created_record_type    TEXT,
+  created_contract_id    UUID REFERENCES public.contracts(id),
+  created_counterpart_id UUID REFERENCES public.counterparts(id),
+  created_employee_id    UUID REFERENCES public.employees(id),
+  created_bando_id       UUID REFERENCES public.bandi(id),
+  completed_at           TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 18. PAYMENT RECORDS (tracciamento pagamenti)
+-- ============================================================
+CREATE TABLE public.payment_records (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id     UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  contract_id    UUID REFERENCES public.contracts(id),
+  counterpart_id UUID REFERENCES public.counterparts(id),
+  invoice_id     UUID REFERENCES public.invoices(id),
+  direction      TEXT NOT NULL CHECK (direction IN ('outgoing','incoming')),
+  amount         NUMERIC NOT NULL,
+  currency       TEXT DEFAULT 'EUR',
+  expected_date  DATE,
+  actual_date    DATE,
+  days_delta     INT,
+  status         TEXT DEFAULT 'expected' CHECK (status IN (
+                   'expected','invoiced','paid','overdue','disputed'
+                 )),
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 19. NEGOTIATION EVENTS (storico negoziazioni)
+-- ============================================================
+CREATE TABLE public.negotiation_events (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_id       UUID NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  event_type        TEXT CHECK (event_type IN (
+                      'draft_sent','counterproposal','clause_modified',
+                      'clause_removed','clause_added','signed','rejected'
+                    )),
+  initiated_by      TEXT CHECK (initiated_by IN ('us','counterpart')),
+  description       TEXT,
+  clauses_affected  UUID[] DEFAULT '{}'::UUID[],
+  document_version  INT,
+  event_date        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 20. BANDI COMPETITOR AWARDS (analisi competitiva)
+-- Pagina: /dashboard/analytics
+-- ============================================================
+CREATE TABLE public.bandi_competitor_awards (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id     UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  bando_id       UUID REFERENCES public.bandi(id) ON DELETE SET NULL,
+  cig            TEXT,
+  authority_name TEXT,
+  cpv_codes      TEXT[] DEFAULT '{}'::TEXT[],
+  procedure_year INT,
+  winner_name    TEXT NOT NULL,
+  winner_vat     TEXT,
+  awarded_value  NUMERIC,
+  base_value     NUMERIC,
+  discount_pct   NUMERIC,
+  source_url     TEXT,
+  scraped_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- INDICI
+-- ============================================================
+CREATE INDEX idx_contracts_company     ON public.contracts(company_id);
+CREATE INDEX idx_contracts_status      ON public.contracts(status);
+CREATE INDEX idx_contracts_end_date    ON public.contracts(end_date);
+CREATE INDEX idx_contracts_counterpart ON public.contracts(counterpart_id);
+CREATE INDEX idx_contracts_employee    ON public.contracts(employee_id);
+CREATE INDEX idx_contracts_renewal     ON public.contracts(end_date, renewal_notice_days)
+  WHERE auto_renewal = TRUE AND status = 'active';
+CREATE INDEX idx_contracts_embedding   ON public.contracts
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX idx_counterparts_company ON public.counterparts(company_id);
+CREATE INDEX idx_counterparts_type    ON public.counterparts(company_id, type);
+CREATE INDEX idx_counterparts_vat     ON public.counterparts(vat_number);
+
+CREATE INDEX idx_employees_company    ON public.employees(company_id);
+CREATE INDEX idx_employees_compliance ON public.employees(medical_exam_date, safety_training_date, probation_end_date)
+  WHERE termination_date IS NULL;
+
+CREATE INDEX idx_clauses_contract ON public.clauses(contract_id);
+CREATE INDEX idx_clauses_risk     ON public.clauses(risk_level);
+
+CREATE INDEX idx_obligations_contract ON public.obligations(contract_id);
+CREATE INDEX idx_obligations_due_date ON public.obligations(due_date);
+CREATE INDEX idx_obligations_status   ON public.obligations(status);
+
+CREATE INDEX idx_milestones_contract ON public.milestones(contract_id);
+CREATE INDEX idx_milestones_due_date ON public.milestones(due_date);
+CREATE INDEX idx_milestones_status   ON public.milestones(status);
+
+CREATE INDEX idx_invoices_company        ON public.invoices(company_id);
+CREATE INDEX idx_invoices_contract       ON public.invoices(contract_id);
+CREATE INDEX idx_invoices_due_date       ON public.invoices(due_date);
+CREATE INDEX idx_invoices_payment_status ON public.invoices(payment_status);
+
+CREATE INDEX idx_alerts_company_status ON public.alerts(company_id, status);
+CREATE INDEX idx_alerts_trigger_date   ON public.alerts(trigger_date);
+CREATE INDEX idx_alerts_type           ON public.alerts(alert_type);
+
+CREATE INDEX idx_bandi_company_active  ON public.bandi(company_id, is_active);
+CREATE INDEX idx_bandi_match_score     ON public.bandi(match_score DESC);
+CREATE INDEX idx_bandi_deadline        ON public.bandi(deadline);
+CREATE INDEX idx_bandi_source          ON public.bandi(source);
+CREATE INDEX idx_bandi_participation   ON public.bandi(company_id, participation_status)
+  WHERE is_active = TRUE;
+CREATE INDEX idx_bandi_deadline_active ON public.bandi(deadline ASC)
+  WHERE is_active = TRUE
+    AND participation_status IN ('saved','evaluating','participating');
+CREATE INDEX idx_bandi_embedding       ON public.bandi
+  USING ivfflat (bando_embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX idx_payment_records_company  ON public.payment_records(company_id);
+CREATE INDEX idx_payment_records_contract ON public.payment_records(contract_id);
+CREATE INDEX idx_payment_records_invoice  ON public.payment_records(invoice_id);
+
+CREATE INDEX idx_negotiation_events_contract ON public.negotiation_events(contract_id);
+CREATE INDEX idx_negotiation_events_date     ON public.negotiation_events(event_date DESC);
+
+CREATE INDEX idx_competitor_awards_company ON public.bandi_competitor_awards(company_id);
+CREATE INDEX idx_competitor_awards_cpv     ON public.bandi_competitor_awards USING GIN(cpv_codes);
+
+-- ============================================================
+-- VIEWS
+-- ============================================================
+
+CREATE OR REPLACE VIEW public.v_contracts_expiring_soon AS
+SELECT
+  c.id, c.company_id, c.title, c.contract_type, c.status,
+  c.end_date, c.auto_renewal, c.renewal_notice_days, c.value,
+  cp.name  AS counterpart_name,
+  cp.type  AS counterpart_type,
+  e.full_name AS employee_name,
+  (c.end_date - CURRENT_DATE) AS days_until_expiry,
+  CASE
+    WHEN c.auto_renewal AND c.renewal_notice_days IS NOT NULL
+    THEN c.end_date - c.renewal_notice_days
+    ELSE NULL
+  END AS disdetta_deadline
+FROM public.contracts c
+LEFT JOIN public.counterparts cp ON c.counterpart_id = cp.id
+LEFT JOIN public.employees    e  ON c.employee_id    = e.id
+WHERE c.status IN ('active','expiring')
+  AND c.end_date IS NOT NULL
+  AND c.end_date <= CURRENT_DATE + INTERVAL '30 days'
+  AND c.end_date >= CURRENT_DATE;
+
+CREATE OR REPLACE VIEW public.v_bandi_top_match AS
+SELECT
+  b.id, b.company_id, b.title, b.authority_name,
+  b.source, b.source_label, b.base_value, b.deadline,
+  b.match_score, b.participation_status, b.gap_analysis_json,
+  (b.deadline::date - CURRENT_DATE) AS days_until_deadline
+FROM public.bandi b
+WHERE b.is_active = TRUE
+  AND b.match_score >= 60
+  AND b.deadline > NOW()
+ORDER BY b.match_score DESC, b.deadline ASC;
+
+CREATE OR REPLACE VIEW public.v_dashboard_kpi AS
+SELECT
+  company_id,
+  COUNT(*) FILTER (WHERE status = 'active')                                     AS active_contracts,
+  COUNT(*) FILTER (
+    WHERE status IN ('active','expiring')
+      AND end_date <= CURRENT_DATE + INTERVAL '30 days'
+      AND end_date >= CURRENT_DATE
+  )                                                                               AS expiring_30d,
+  COALESCE(SUM(value) FILTER (WHERE status = 'active'), 0)                       AS portfolio_value,
+  COUNT(*) FILTER (WHERE status = 'active' AND contract_type IN (
+    'service_supply','goods_supply','framework','agency','partnership','nda'
+  ))                                                                              AS commercial_contracts,
+  COUNT(*) FILTER (WHERE status = 'active' AND contract_type IN (
+    'permanent','fixed_term','part_time','cococo','vat_number','internship','apprenticeship'
+  ))                                                                              AS hr_contracts
+FROM public.contracts
+GROUP BY company_id;
