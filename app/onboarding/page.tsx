@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+export const dynamic = 'force-dynamic'
 
 const steps = [
   { id: 1, title: "Profilo aziendale", icon: Building2, description: "Completa i dati aziendali" },

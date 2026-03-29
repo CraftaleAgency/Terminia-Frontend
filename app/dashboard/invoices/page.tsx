@@ -1,5 +1,6 @@
 import { fetchInvoices, fetchCounterparts, fetchContracts, getCompanyId } from '@/lib/actions/data'
 import { InvoicesList } from '@/components/dashboard/invoices-list'
+export const dynamic = 'force-dynamic'
 
 export default async function InvoicesPage() {
   const [invoices, counterparts, contracts, companyId] = await Promise.all([

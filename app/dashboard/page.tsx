@@ -1,5 +1,6 @@
 import { fetchDashboardData } from '@/lib/actions/data'
 import { DashboardOverview } from '@/components/dashboard/dashboard-overview'
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const data = await fetchDashboardData()

@@ -1,5 +1,6 @@
 import { fetchAnalytics } from '@/lib/actions/data'
 import { AnalyticsView } from '@/components/dashboard/analytics-view'
+export const dynamic = 'force-dynamic'
 
 export default async function AnalyticsPage() {
   const data = await fetchAnalytics()

@@ -1,5 +1,6 @@
 import { fetchCounterparts, fetchEmployees } from '@/lib/actions/data'
 import { ContractNewForm } from '@/components/dashboard/contract-new-form'
+export const dynamic = 'force-dynamic'
 
 export default async function NewContractPage() {
   const [counterparts, employees] = await Promise.all([

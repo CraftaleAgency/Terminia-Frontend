@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { signup } from "../actions"
 import { motion } from "framer-motion"
 import { analyzeContractAction } from '@/lib/actions/contracts'
+export const dynamic = 'force-dynamic'
 
 const sectors = [
   "Informatica e Tecnologia",
