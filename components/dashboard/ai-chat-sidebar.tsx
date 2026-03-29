@@ -36,34 +36,34 @@ interface SuggestedQuestion {
 
 const suggestedQuestions: SuggestedQuestion[] = [
   {
-    icon: FileText,
-    question: "Analizza il mio contratto di fornitura e dimmi i rischi principali",
-    category: "Analisi AI"
-  },
-  {
-    icon: Search,
-    question: "Verifica l'affidabilità della controparte con P.IVA 12345678901",
-    category: "OSINT"
-  },
-  {
     icon: Bell,
-    question: "Quali contratti sono in scadenza nei prossimi 30 giorni?",
+    question: "Quali contratti sono in scadenza e quali alert ho attivi?",
     category: "Scadenze"
   },
   {
     icon: BarChart3,
-    question: "Qual è il rischio complessivo del mio portafoglio contratti?",
-    category: "Risk Score"
+    question: "Dammi un riepilogo generale della mia situazione contrattuale",
+    category: "Overview"
   },
   {
-    icon: Building2,
-    question: "Cosa devo controllare prima di firmare un NDA con un nuovo fornitore?",
-    category: "Consulenza"
+    icon: Search,
+    question: "Quali controparti non sono ancora verificate con OSINT?",
+    category: "Controparti"
   },
   {
     icon: Wallet,
     question: "Ci sono bandi di gara compatibili con la mia azienda?",
     category: "BandoRadar"
+  },
+  {
+    icon: FileText,
+    question: "Ho fatture scadute o pagamenti in sospeso?",
+    category: "Fatture"
+  },
+  {
+    icon: Building2,
+    question: "Cosa devo controllare prima di firmare un NDA con un nuovo fornitore?",
+    category: "Consulenza"
   },
 ]
 
