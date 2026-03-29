@@ -73,6 +73,7 @@ export async function getChatStreamConfig(): Promise<{
   token: string
   companyId: string
   userId: string
+  accountType: string
 } | { error: string }> {
   try {
     const supabase = await createClient()
@@ -89,7 +90,13 @@ export async function getChatStreamConfig(): Promise<{
     }
 
     const baseUrl = process.env.NEMOCLAW_API_URL ?? 'https://nemoclaw.pezserv.org'
-    return { url: `${baseUrl}/api/chat`, token, companyId, userId: user.id }
+    return {
+      url: `${baseUrl}/api/chat`,
+      token,
+      companyId,
+      userId: user.id,
+      accountType: user.user_metadata?.account_type || 'company',
+    }
   } catch {
     return { error: 'Errore di configurazione' }
   }

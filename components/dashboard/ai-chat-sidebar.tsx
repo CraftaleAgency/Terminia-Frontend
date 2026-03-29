@@ -63,37 +63,22 @@ interface SuggestedQuestion {
   category: string
 }
 
-const suggestedQuestions: SuggestedQuestion[] = [
-  {
-    icon: Bell,
-    question: "Quali contratti sono in scadenza e quali alert ho attivi?",
-    category: "Scadenze"
-  },
-  {
-    icon: BarChart3,
-    question: "Dammi un riepilogo generale della mia situazione contrattuale",
-    category: "Overview"
-  },
-  {
-    icon: Search,
-    question: "Quali controparti non sono ancora verificate con OSINT?",
-    category: "Controparti"
-  },
-  {
-    icon: Wallet,
-    question: "Ci sono bandi di gara compatibili con la mia azienda?",
-    category: "BandoRadar"
-  },
-  {
-    icon: FileText,
-    question: "Ho fatture scadute o pagamenti in sospeso?",
-    category: "Fatture"
-  },
-  {
-    icon: Building2,
-    question: "Cosa devo controllare prima di firmare un NDA con un nuovo fornitore?",
-    category: "Consulenza"
-  },
+const companyQuestions: SuggestedQuestion[] = [
+  { icon: Bell, question: "Quali contratti sono in scadenza e quali alert ho attivi?", category: "Scadenze" },
+  { icon: BarChart3, question: "Dammi un riepilogo generale della mia situazione contrattuale", category: "Overview" },
+  { icon: Search, question: "Quali controparti non sono ancora verificate con OSINT?", category: "Controparti" },
+  { icon: Wallet, question: "Ci sono bandi di gara compatibili con la mia azienda?", category: "BandoRadar" },
+  { icon: FileText, question: "Ho fatture scadute o pagamenti in sospeso?", category: "Fatture" },
+  { icon: Building2, question: "Cosa devo controllare prima di firmare un NDA con un nuovo fornitore?", category: "Consulenza" },
+]
+
+const personalQuestions: SuggestedQuestion[] = [
+  { icon: Bell, question: "Ho contratti in scadenza o alert attivi?", category: "Scadenze" },
+  { icon: BarChart3, question: "Dammi un riepilogo dei miei contratti attivi", category: "Overview" },
+  { icon: FileText, question: "Ci sono obblighi contrattuali con scadenza imminente?", category: "Obblighi" },
+  { icon: Search, question: "Quali clausole nei miei contratti potrebbero essere rischiose?", category: "Analisi" },
+  { icon: Wallet, question: "Ho pagamenti in sospeso o fatture da gestire?", category: "Pagamenti" },
+  { icon: Building2, question: "Cosa devo verificare prima di firmare un nuovo contratto?", category: "Consulenza" },
 ]
 
 const ACCEPTED_FILE_TYPES = ".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.gif"
@@ -118,7 +103,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader()
     reader.onload = () => {
       const result = reader.result as string
-      // Strip the data:...;base64, prefix
       const base64 = result.split(",")[1] ?? result
       resolve(base64)
     }
@@ -137,6 +121,7 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+  const [accountType, setAccountType] = useState<string>("company")
 
   // Conversation persistence state
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -152,6 +137,8 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
+  const suggestedQuestions = accountType === "personal" ? personalQuestions : companyQuestions
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -160,12 +147,12 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     scrollToBottom()
   }, [messages])
 
-  // Load conversation list on mount and when sidebar opens
+  // Load conversation list and user account type on sidebar open
   const loadConversations = useCallback(async () => {
     try {
       const result = await listConversationsAction()
-      if (Array.isArray(result)) {
-        setConversations(result)
+      if (result.success) {
+        setConversations(result.conversations)
       }
     } catch {
       // silently fail — list stays empty
@@ -175,6 +162,12 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
   useEffect(() => {
     if (isChatOpen) {
       loadConversations()
+      // Load user account type to show relevant suggested questions
+      getChatStreamConfig().then(config => {
+        if (!('error' in config)) {
+          setAccountType(config.accountType)
+        }
+      })
     }
   }, [isChatOpen, loadConversations])
 
