@@ -10,7 +10,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { signup } from "../actions"
 import { motion } from "framer-motion"
-import { analyzeContractAction } from '@/lib/actions/contracts'
 export const dynamic = 'force-dynamic'
 
 const sectors = [
@@ -120,10 +119,17 @@ export default function RegisterPage() {
         reader.readAsDataURL(file)
       })
 
-      const result = await analyzeContractAction({
-        documentBase64: base64,
-        contentType: file.type,
+      const res = await fetch('/api/nemoclaw/analyze-public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document_base64: base64,
+          content_type: file.type,
+        }),
       })
+      const result = res.ok
+        ? { success: true, data: await res.json() }
+        : { success: false, data: null }
 
       if (result.success && result.data) {
         const filled = new Set<string>()
