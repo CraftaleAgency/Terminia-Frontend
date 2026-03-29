@@ -4,8 +4,8 @@ FROM node:22-alpine AS base
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Build the app
 FROM base AS builder
@@ -18,7 +18,7 @@ ARG NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-RUN npm install -g pnpm && pnpm run build
+RUN npm run build
 
 # Production image
 FROM base AS runner
@@ -26,7 +26,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3004
 ENV HOSTNAME=0.0.0.0
-RUN npm install -g pnpm
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public

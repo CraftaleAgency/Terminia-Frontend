@@ -479,7 +479,7 @@ export default function RegisterPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.gif,.webp,.tiff,.bmp"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0]
