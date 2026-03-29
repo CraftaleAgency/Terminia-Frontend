@@ -89,10 +89,10 @@ export async function getChatStreamConfig(): Promise<{
       return { error: 'Sessione scaduta' }
     }
 
-    const baseUrl = process.env.NEMOCLAW_API_URL ?? 'https://nemoclaw.pezserv.org'
+    // Return the Next.js proxy route — browser can't reach internal Docker URL directly
     return {
-      url: `${baseUrl}/api/chat`,
-      token,
+      url: '/api/chat-stream',
+      token, // still passed so proxy can attach it to upstream request
       companyId,
       userId: user.id,
       accountType: user.user_metadata?.account_type || 'company',

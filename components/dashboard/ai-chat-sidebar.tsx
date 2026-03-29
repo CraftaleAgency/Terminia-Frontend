@@ -151,22 +151,47 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
   const loadConversations = useCallback(async () => {
     try {
       const result = await listConversationsAction()
-      if (result.success) {
+      if (result.success && result.conversations.length > 0) {
         setConversations(result.conversations)
+        // Auto-restore most recent conversation if no active conversation yet
+        setActiveConversationId(prev => {
+          if (prev) return prev // keep current if already selected
+          return result.conversations[0].id
+        })
+        // Load messages for the most recent conversation
+        const recent = result.conversations[0]
+        const msgs = await getConversationMessagesAction(recent.id)
+        if (msgs.success) {
+          setActiveConversationId(recent.id)
+          setMessages(msgs.messages.map(m => ({
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            timestamp: new Date(m.created_at),
+          })))
+        }
       }
     } catch {
       // silently fail — list stays empty
     }
   }, [])
 
+  const initialLoadDone = useRef(false)
+
   useEffect(() => {
-    if (isChatOpen) {
+    if (isChatOpen && !initialLoadDone.current) {
+      initialLoadDone.current = true
       loadConversations()
       // Load user account type to show relevant suggested questions
       getChatStreamConfig().then(config => {
         if (!('error' in config)) {
           setAccountType(config.accountType)
         }
+      })
+    } else if (isChatOpen) {
+      // Refresh conversation list without resetting messages
+      listConversationsAction().then(result => {
+        if (result.success) setConversations(result.conversations)
       })
     }
   }, [isChatOpen, loadConversations])
