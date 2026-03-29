@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+const NEMOCLAW_URL = process.env.NEMOCLAW_API_URL || 'http://terminia-api:3100'
+
 export async function signup(formData: FormData) {
   const supabase = await createClient()
   const accountType = (formData.get('accountType') as string) || 'company'
@@ -26,10 +28,32 @@ export async function signup(formData: FormData) {
     },
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { data: signUpData, error } = await supabase.auth.signUp(data)
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Store signup document in Supabase storage (fire-and-forget)
+  const documentBase64 = formData.get('documentBase64') as string
+  const documentContentType = formData.get('documentContentType') as string
+  const documentFilename = formData.get('documentFilename') as string
+  if (documentBase64 && signUpData?.user?.id) {
+    try {
+      await fetch(`${NEMOCLAW_URL}/api/documents/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document_base64: documentBase64,
+          content_type: documentContentType || 'application/pdf',
+          filename: documentFilename || 'registration-document.pdf',
+          user_id: signUpData.user.id,
+          source: 'registration',
+        }),
+      })
+    } catch {
+      // Non-fatal — signup succeeded, document storage is best-effort
+    }
   }
 
   revalidatePath('/', 'layout')

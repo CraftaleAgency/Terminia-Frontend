@@ -62,6 +62,9 @@ export default function RegisterPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeStatus, setAnalyzeStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set())
+  const [uploadedDocBase64, setUploadedDocBase64] = useState<string | null>(null)
+  const [uploadedDocContentType, setUploadedDocContentType] = useState<string | null>(null)
+  const [uploadedDocFilename, setUploadedDocFilename] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const passwordRequirements = [
@@ -118,6 +121,11 @@ export default function RegisterPage() {
         reader.onerror = () => reject(new Error('Errore nella lettura del file'))
         reader.readAsDataURL(file)
       })
+
+      // Save for later upload after signup
+      setUploadedDocBase64(base64)
+      setUploadedDocContentType(file.type)
+      setUploadedDocFilename(file.name)
 
       const res = await fetch('/api/nemoclaw/analyze-public', {
         method: 'POST',
@@ -244,6 +252,13 @@ export default function RegisterPage() {
     formDataObj.append("size", formData.accountType === "company" ? formData.size : "micro")
     formDataObj.append("city", formData.city)
     formDataObj.append("personalContractProfile", formData.accountType === "person" ? formData.personalContractProfile : "")
+
+    // Attach document for storage after signup
+    if (uploadedDocBase64) {
+      formDataObj.append("documentBase64", uploadedDocBase64)
+      formDataObj.append("documentContentType", uploadedDocContentType || "application/pdf")
+      formDataObj.append("documentFilename", uploadedDocFilename || "registration-document.pdf")
+    }
 
     const result = await signup(formDataObj)
 
