@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
       args:
         - NEMOCLAW_API_URL=http://terminia-api:3100
-        - NEXT_PUBLIC_SUPABASE_URL=https://supabase-terminia.pezserv.org
-        - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ3NDA3NDAsImV4cCI6MTg5MzQ1NjAwMCwicm9sZSI6ImFub24iLCJpc3MiOiJzdXBhYmFzZSJ9.3rfztpKCDCXGfCtIXs7gi7QU9KCAzH-k7g7N3ESarbc
+        - NEXT_PUBLIC_SUPABASE_URL=https://xtosmtpqkcdqnlxcmacc.supabase.co
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_FrKu4ZOVrtoZOA1KK2b_AQ_l9rQND3N
     container_name: terminia-frontend
     restart: unless-stopped
     ports:
@@ -16,8 +16,8 @@ services:
       - PORT=3004
       - NODE_ENV=production
       - NEMOCLAW_API_URL=http://terminia-api:3100
-      - NEXT_PUBLIC_SUPABASE_URL=https://supabase-terminia.pezserv.org
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQ3NDA3NDAsImV4cCI6MTg5MzQ1NjAwMCwicm9sZSI6ImFub24iLCJpc3MiOiJzdXBhYmFzZSJ9.3rfztpKCDCXGfCtIXs7gi7QU9KCAzH-k7g7N3ESarbc
+      - NEXT_PUBLIC_SUPABASE_URL=https://xtosmtpqkcdqnlxcmacc.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_FrKu4ZOVrtoZOA1KK2b_AQ_l9rQND3N
     networks:
       - dokploy-network
     healthcheck:
