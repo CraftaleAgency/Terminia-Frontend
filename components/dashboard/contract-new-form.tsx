@@ -365,11 +365,34 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
       reliabilityScore,
     })
 
-    if (result.success) {
+    if (result.success && result.contractId) {
+      // Upload the original document file to storage
+      if (uploadedFile) {
+        try {
+          const { uploadContractDocumentAction } = await import("@/lib/actions/contracts")
+          const reader = new FileReader()
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => {
+              const result = reader.result as string
+              resolve(result.split(',')[1] || '')
+            }
+            reader.readAsDataURL(uploadedFile)
+          })
+          await uploadContractDocumentAction({
+            contractId: result.contractId,
+            documentBase64: base64,
+            contentType: uploadedFile.type,
+            filename: uploadedFile.name,
+          })
+        } catch {
+          // Non-fatal — contract saved, document upload is best-effort
+        }
+      }
       toast.success("Contratto salvato con successo")
-      router.push(result.contractId
-        ? `/dashboard/contracts/${result.contractId}`
-        : "/dashboard/contracts")
+      router.push(`/dashboard/contracts/${result.contractId}`)
+    } else if (result.success) {
+      toast.success("Contratto salvato con successo")
+      router.push("/dashboard/contracts")
     } else {
       toast.error(result.error || "Errore durante il salvataggio")
       setIsSubmitting(false)
