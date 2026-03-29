@@ -197,7 +197,8 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
         toast.error(
           result.error || "Servizio AI temporaneamente non disponibile. Puoi inserire i dati manualmente.",
         )
-        setUploadStep("preview")
+        setUploadStep("upload")
+        setUploadProgress(0)
         return
       }
 
@@ -284,15 +285,16 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
         setCurrentQuestionIndex(0)
         setUploadStep("questions")
       }
-    } catch {
+    } catch (err) {
       clearInterval(interval)
+      console.error('[contract-new-form] Analysis error:', err)
       toast.error("Errore di rete. Riprova più tardi.", {
         action: { label: "Riprova", onClick: () => handleFileUpload(file) },
       })
       setUploadStep("upload")
       setUploadProgress(0)
     }
-  }, [])
+  }, [counterparts])
 
   const handleQuestionAnswer = (questionId: string, answer: string) => {
     // Process answer
