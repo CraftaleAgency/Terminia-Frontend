@@ -32,7 +32,7 @@ const plans = [
     features: [
       "Contratti illimitati",
       "Estrazione AI + chatbot contrattuale",
-      "Alert via email e Slack",
+      "Alert via email e Telegram",
       "BandoRadar - ricerca bandi AI",
       "Gestione dipendenti + lettere HR",
       "Analytics e cashflow proiettato",

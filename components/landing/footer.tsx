@@ -6,7 +6,11 @@ const footerLinks = {
     { label: "Funzionalita", href: "#features" },
     { label: "BandoRadar", href: "#bandoradar" },
     // { label: "Prezzi", href: "#pricing" },
+  ],
+  Risorse: [
     { label: "Documentazione", href: "/docs" },
+    { label: "Architettura", href: "/docs/architettura" },
+    { label: "Integrazioni", href: "/docs/integrazioni" },
   ],
   Legale: [
     { label: "Privacy Policy", href: "/privacy" },
@@ -18,7 +22,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border/20 py-16 px-6">
       <div className="mx-auto max-w-5xl">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
@@ -59,7 +63,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="border-t border-border/20 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            2025 Terminia S.r.l. Tutti i diritti riservati.
+            2026 Terminia S.r.l. Tutti i diritti riservati.
           </p>
         </div>
       </div>

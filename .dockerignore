@@ -1,45 +1,6 @@
-# Dependencies
 node_modules
-.pnpm-store
-
-# Build outputs
 .next
-out
-build
-dist
-
-# TypeScript build info (causes Docker mount errors)
-*.tsbuildinfo
-tsconfig.tsbuildinfo
-
-# Git
 .git
-.gitignore
-
-# IDE
-.idea
-.vscode
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Env files
-.env
-.env.*
-!.env.example
-
-# Logs
-*.log
-npm-debug.log*
-
-# Test
-coverage
-.nyc_output
-
-# Misc
+docs
 *.md
-!README.md
-.claude
+.env*

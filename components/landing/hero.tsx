@@ -53,8 +53,8 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="mx-auto max-w-2xl text-balance text-lg md:text-xl text-muted-foreground leading-relaxed mb-8"
             >
-              Lascia che l&apos;AI legga, capisca e protegga ogni contratto della tua azienda.
-              Il co-pilota legale per le PMI italiane.
+              L'AI che legge, capisce e protegge ogni contratto della tua azienda.
+              Con AI proprietaria che non condivide mai i tuoi dati.
             </motion.p>
 
             {/* CTAs */}
@@ -79,14 +79,27 @@ export function Hero() {
             </motion.div>
 
             {/* Trust line - more spacing from dashboard */}
-            <motion.p
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.7, delay: 0.4 }}
-              className="text-sm text-muted-foreground/70 mb-10"
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 text-xs text-muted-foreground/70"
             >
-              Nessuna carta richiesta. Setup in 2 minuti.
-            </motion.p>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                AI proprietaria — dati mai condivisi
+              </span>
+              <span className="hidden sm:inline text-border/40">·</span>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                GDPR nativo · Hosting UE
+              </span>
+              <span className="hidden sm:inline text-border/40">·</span>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                Nessuna carta richiesta
+              </span>
+            </motion.div>
           </div>
         }
       >

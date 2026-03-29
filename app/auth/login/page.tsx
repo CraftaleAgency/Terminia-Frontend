@@ -7,6 +7,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { login } from "../actions"
+export const dynamic = 'force-dynamic'
 
 export default function LoginPage() {
   const router = useRouter()
