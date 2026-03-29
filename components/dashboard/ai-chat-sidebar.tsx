@@ -36,6 +36,7 @@ import {
   getConversationMessagesAction,
   renameConversationAction,
   deleteConversationAction,
+  saveMessageAction,
   type ChatMessage
 } from "@/lib/actions/chat"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -401,6 +402,11 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
       }
     }
 
+    // Persist user message to DB
+    if (conversationId) {
+      saveMessageAction(conversationId, 'user', content.trim()).catch(() => {})
+    }
+
     const chatHistory: ChatMessage[] = [
       ...messages.map(m => ({ role: m.role, content: m.content })),
       { role: "user" as const, content: content.trim() }
@@ -434,6 +440,7 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
 
       streamCommitted = true
       const assistantMessageId = (Date.now() + 1).toString()
+      let fullContent = ""
       setIsTyping(false)
       setMessages(prev => [...prev, {
         id: assistantMessageId,
@@ -458,19 +465,25 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
           for (const line of lines) {
             const trimmed = line.trim()
             if (!trimmed || trimmed.startsWith(":")) continue
-            if (trimmed === "data: [DONE]") return
+            if (trimmed === "data: [DONE]") {
+              // Persist assistant message before returning
+              if (conversationId && fullContent.trim()) {
+                saveMessageAction(conversationId, 'assistant', fullContent).catch(() => {})
+              }
+              return
+            }
 
             if (trimmed.startsWith("data: ")) {
               try {
                 const chunk = JSON.parse(trimmed.slice(6)) as { content?: string; type?: string }
                 if (chunk.type === "thinking" && chunk.content) {
-                  // Accumulate thinking steps in the assistant message
                   setMessages(prev => prev.map(m =>
                     m.id === assistantMessageId
                       ? { ...m, thinking: [...(m.thinking ?? []), chunk.content!] }
                       : m
                   ))
                 } else if (chunk.content) {
+                  fullContent += chunk.content
                   setMessages(prev => prev.map(m =>
                     m.id === assistantMessageId
                       ? { ...m, content: m.content + chunk.content }
@@ -485,6 +498,11 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
         }
       } finally {
         reader.releaseLock()
+      }
+
+      // Persist assistant message if stream ended without [DONE]
+      if (conversationId && fullContent.trim()) {
+        saveMessageAction(conversationId, 'assistant', fullContent).catch(() => {})
       }
 
       setMessages(prev => prev.map(m =>
