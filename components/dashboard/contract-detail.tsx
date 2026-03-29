@@ -111,6 +111,9 @@ interface Milestone {
   created_at?: string
 }
 
+type NegotiationEventRow = Database['public']['Tables']['negotiation_events']['Row']
+type ContractDocumentRow = Database['public']['Tables']['contract_documents']['Row']
+
 export interface ContractDetailProps {
   contract: Contract
   counterpart: Counterpart | null
@@ -119,6 +122,8 @@ export interface ContractDetailProps {
   clauses: Clause[]
   obligations: Obligation[]
   milestones: Milestone[]
+  negotiationEvents: NegotiationEventRow[]
+  documents: ContractDocumentRow[]
 }
 
 // Utility functions
@@ -158,78 +163,7 @@ const getStatusLabel = (status: ContractStatus): string => {
   return labels[status] || status
 }
 
-const mockNegotiationHistory = [
-  {
-    id: "nh1",
-    contract_id: "c1",
-    event_type: "Bozza iniziale",
-    description: "Prima bozza del contratto inviata per revisione",
-    initiated_by: "mine",
-    version_number: 1,
-    created_at: "2024-01-05T10:00:00Z",
-  },
-  {
-    id: "nh2",
-    contract_id: "c1",
-    event_type: "Controproposta",
-    description: "Richiesta modifica clausola penali e responsabilita",
-    initiated_by: "theirs",
-    version_number: 2,
-    created_at: "2024-01-08T14:30:00Z",
-  },
-  {
-    id: "nh3",
-    contract_id: "c1",
-    event_type: "Accordo",
-    description: "Accordo raggiunto sulle modifiche proposte",
-    initiated_by: "mine",
-    version_number: 3,
-    created_at: "2024-01-10T16:00:00Z",
-  },
-  {
-    id: "nh4",
-    contract_id: "c1",
-    event_type: "Firma",
-    description: "Contratto firmato da entrambe le parti",
-    initiated_by: "theirs",
-    version_number: 3,
-    created_at: "2024-01-15T09:00:00Z",
-  },
-]
 
-const mockDocuments = [
-  {
-    id: "d1",
-    contract_id: "c1",
-    file_name: "Contratto_Fornitura_Servizi_IT_v3.pdf",
-    document_type: "signed",
-    version: 3,
-    is_current: true,
-    signature_status: "signed",
-    signed_at: "2024-01-15T09:00:00Z",
-    created_at: "2024-01-15T09:00:00Z",
-  },
-  {
-    id: "d2",
-    contract_id: "c1",
-    file_name: "Contratto_Fornitura_Servizi_IT_v2.pdf",
-    document_type: "original",
-    version: 2,
-    is_current: false,
-    signature_status: null,
-    created_at: "2024-01-10T16:00:00Z",
-  },
-  {
-    id: "d3",
-    contract_id: "c1",
-    file_name: "Allegato_A_Specifiche_Tecniche.pdf",
-    document_type: "attachment",
-    version: 1,
-    is_current: true,
-    signature_status: null,
-    created_at: "2024-01-15T09:00:00Z",
-  },
-]
 
 type TabId = "riepilogo" | "clausole" | "obblighi" | "milestone" | "documenti" | "fatture" | "storico" | "gdpr"
 
@@ -252,6 +186,8 @@ export function ContractDetail({
   clauses,
   obligations,
   milestones,
+  negotiationEvents,
+  documents,
 }: ContractDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>("riepilogo")
@@ -975,15 +911,20 @@ export function ContractDetail({
                       </p>
                     </div>
                     <div className="space-y-2">
-                      {mockDocuments.map((doc) => (
+                      {documents.length === 0 ? (
+                        <div className="text-center py-8">
+                          <FileText className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Nessun documento</p>
+                        </div>
+                      ) : documents.map((doc) => (
                         <div
                           key={doc.id}
                           className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/20"
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              doc.document_type === "signed" ? "bg-emerald-500/10 text-emerald-400" :
-                              doc.document_type === "attachment" ? "bg-blue-500/10 text-blue-400" :
+                              doc.document_role === "signed" ? "bg-emerald-500/10 text-emerald-400" :
+                              doc.document_role === "attachment" ? "bg-blue-500/10 text-blue-400" :
                               "bg-muted/30 text-muted-foreground"
                             }`}>
                               <FileText className="size-5" />
@@ -998,9 +939,9 @@ export function ContractDetail({
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>v{doc.version}</span>
-                                <span>-</span>
-                                <span className="capitalize">{doc.document_type}</span>
+                                {doc.version && <><span>v{doc.version}</span><span>-</span></>}
+                                {doc.file_type && <span>{doc.file_type}</span>}
+                                {doc.file_size && <><span>-</span><span>{(doc.file_size / 1024).toFixed(0)} KB</span></>}
                                 {doc.signature_status === "signed" && (
                                   <>
                                     <span>-</span>
@@ -1011,9 +952,9 @@ export function ContractDetail({
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button className="p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-muted/30 transition-colors">
                               <Download className="size-4 text-muted-foreground" />
-                            </button>
+                            </a>
                             <button className="p-2 rounded-lg hover:bg-muted/30 transition-colors">
                               <MoreVertical className="size-4 text-muted-foreground" />
                             </button>
@@ -1104,43 +1045,52 @@ export function ContractDetail({
                     className="space-y-4"
                   >
                     <div className="relative">
-                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/30" />
-                      <div className="space-y-4">
-                        {mockNegotiationHistory.map((event) => (
-                          <div key={event.id} className="relative flex gap-4">
-                            <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center ${
-                              event.initiated_by === "mine" ? "bg-primary" : "bg-blue-500"
-                            }`}>
-                              {event.event_type === "Firma" ? (
-                                <FileSignature className="size-4 text-white" />
-                              ) : (
-                                <History className="size-4 text-white" />
-                              )}
-                            </div>
-                            <div className="flex-1 bg-muted/20 rounded-xl border border-border/20 p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h4 className="text-sm font-medium text-foreground">{event.event_type}</h4>
-                                  <p className="text-xs text-muted-foreground mt-1">{event.description}</p>
+                      {negotiationEvents.length === 0 ? (
+                        <div className="text-center py-8">
+                          <History className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Nessun evento</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/30" />
+                          <div className="space-y-4">
+                            {negotiationEvents.map((event) => (
+                              <div key={event.id} className="relative flex gap-4">
+                                <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center ${
+                                  event.initiated_by === "mine" ? "bg-primary" : "bg-blue-500"
+                                }`}>
+                                  {event.event_type === "Firma" ? (
+                                    <FileSignature className="size-4 text-white" />
+                                  ) : (
+                                    <History className="size-4 text-white" />
+                                  )}
                                 </div>
-                                <div className="text-right">
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    event.initiated_by === "mine"
-                                      ? "bg-primary/10 text-primary"
-                                      : "bg-blue-500/10 text-blue-400"
-                                  }`}>
-                                    {event.initiated_by === "mine" ? "Noi" : "Controparte"}
-                                  </span>
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    {formatDate(event.created_at)}
-                                    {event.version_number && ` - v${event.version_number}`}
+                                <div className="flex-1 bg-muted/20 rounded-xl border border-border/20 p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <h4 className="text-sm font-medium text-foreground">{event.event_type}</h4>
+                                      <p className="text-xs text-muted-foreground mt-1">{event.description}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className={`text-xs px-2 py-0.5 rounded ${
+                                        event.initiated_by === "mine"
+                                          ? "bg-primary/10 text-primary"
+                                          : "bg-blue-500/10 text-blue-400"
+                                      }`}>
+                                        {event.initiated_by === "mine" ? "Noi" : "Controparte"}
+                                      </span>
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {event.event_date ? formatDate(event.event_date) : "—"}
+                                        {event.document_version && ` - v${event.document_version}`}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </>
+                      )}
                     </div>
 
                     <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors text-sm w-full justify-center">

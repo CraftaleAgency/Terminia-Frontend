@@ -37,33 +37,33 @@ interface SuggestedQuestion {
 const suggestedQuestions: SuggestedQuestion[] = [
   {
     icon: FileText,
-    question: "Come posso caricare un nuovo contratto?",
-    category: "Contratti"
-  },
-  {
-    icon: Bell,
-    question: "Come funzionano gli alert per le scadenze?",
-    category: "Alert"
+    question: "Analizza il mio contratto di fornitura e dimmi i rischi principali",
+    category: "Analisi AI"
   },
   {
     icon: Search,
-    question: "Come posso cercare una clausola specifica?",
-    category: "Ricerca"
+    question: "Verifica l'affidabilità della controparte con P.IVA 12345678901",
+    category: "OSINT"
+  },
+  {
+    icon: Bell,
+    question: "Quali contratti sono in scadenza nei prossimi 30 giorni?",
+    category: "Scadenze"
   },
   {
     icon: BarChart3,
-    question: "Come interpreto il risk score di un contratto?",
-    category: "Analytics"
+    question: "Qual è il rischio complessivo del mio portafoglio contratti?",
+    category: "Risk Score"
   },
   {
     icon: Building2,
-    question: "Come aggiungo una nuova controparte?",
-    category: "Controparti"
+    question: "Cosa devo controllare prima di firmare un NDA con un nuovo fornitore?",
+    category: "Consulenza"
   },
   {
     icon: Wallet,
-    question: "Come tracciare i pagamenti in scadenza?",
-    category: "Fatture"
+    question: "Ci sono bandi di gara compatibili con la mia azienda?",
+    category: "BandoRadar"
   },
 ]
 

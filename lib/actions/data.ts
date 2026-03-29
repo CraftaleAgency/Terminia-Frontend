@@ -104,6 +104,20 @@ export async function fetchContract(id: string) {
     .eq('contract_id', id)
     .order('due_date', { ascending: true, nullsFirst: false })
 
+  // Fetch negotiation events
+  const { data: negotiationData } = await supabase
+    .from('negotiation_events')
+    .select('*')
+    .eq('contract_id', id)
+    .order('event_date', { ascending: false })
+
+  // Fetch contract documents
+  const { data: documentsData } = await supabase
+    .from('contract_documents')
+    .select('*')
+    .eq('contract_id', id)
+    .order('uploaded_at', { ascending: false })
+
   return {
     contract: {
       ...contractData,
@@ -129,6 +143,8 @@ export async function fetchContract(id: string) {
     clauses: clausesData || [],
     obligations: obligationsData || [],
     milestones: milestonesData || [],
+    negotiationEvents: negotiationData || [],
+    documents: documentsData || [],
   }
 }
 

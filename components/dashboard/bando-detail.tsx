@@ -89,30 +89,47 @@ const sourceLabels: Record<string, string> = {
   regione: "Regione",
 }
 
-// Mock data for checklist
-const mockChecklist = [
-  { id: "ck1", document_name: "Certificato di Iscrizione CCIAA", description: "Certificato camerale in corso di validita (6 mesi)", how_to_obtain: "Richiedi online sul portale InfoCamere", estimated_time: "2-3 giorni", is_long_process: false, is_ready: true },
-  { id: "ck2", document_name: "DURC in corso di validita", description: "Documento Unico di Regolarita Contributiva", how_to_obtain: "Richiedi sul portale INPS o attraverso intermediario", estimated_time: "15-30 giorni", is_long_process: true, is_ready: false },
-  { id: "ck3", document_name: "Certificazione ISO 9001", description: "Certificato del sistema di gestione qualita", how_to_obtain: "Ente di certificazione accreditato", estimated_time: "6-12 mesi", is_long_process: true, is_ready: false },
-  { id: "ck4", document_name: "Bilanci ultimi 3 esercizi", description: "Bilanci depositati presso il Registro Imprese", how_to_obtain: "Estrai dal tuo software contabile o dal Registro Imprese", estimated_time: "1 giorno", is_long_process: false, is_ready: true },
-  { id: "ck5", document_name: "Attestazione SOA", description: "Attestazione del sistema di qualificazione", how_to_obtain: "Ente SOA autorizzato", estimated_time: "3-6 mesi", is_long_process: true, is_ready: false },
-  { id: "ck6", document_name: "Polizza RC Professionale", description: "Assicurazione responsabilita civile professionale", how_to_obtain: "Compagnia assicurativa o broker", estimated_time: "5-10 giorni", is_long_process: false, is_ready: true },
-  { id: "ck7", document_name: "Dichiarazione antimafia", description: "Dichiarazione sostitutiva antimafia", how_to_obtain: "Prefettura o Camera di Commercio", estimated_time: "15-30 giorni", is_long_process: true, is_ready: false },
-  { id: "ck8", document_name: "Curriculum aziendale", description: "CV con esperienze pregresse simili", how_to_obtain: "Redigi internamente", estimated_time: "1-2 giorni", is_long_process: false, is_ready: false },
-]
+// Parse gap_analysis_json into checklist items
+interface ChecklistItem {
+  requirement: string
+  is_ready: boolean
+  note?: string
+}
 
-const mockLotti = [
-  { id: "l1", lot_number: 1, title: "Lotto 1 - Servizi di sviluppo software", description: "Sviluppo e manutenzione applicativi web e mobile", value: 85000 },
-  { id: "l2", lot_number: 2, title: "Lotto 2 - Servizi di infrastruttura", description: "Gestione infrastruttura cloud e sicurezza", value: 45000 },
-  { id: "l3", lot_number: 3, title: "Lotto 3 - Supporto e helpdesk", description: "Servizi di supporto tecnico agli utenti", value: 20000 },
-]
+interface LotItem {
+  lot_number: number
+  title: string
+  description?: string
+  value?: number
+}
 
-const mockCompetitors = [
-  { id: "comp1", year: 2023, authority: "Comune di Milano", winner: "ICT Solutions SpA", value: 78000, discount_percent: 12.5 },
-  { id: "comp2", year: 2023, authority: "Regione Lombardia", winner: "Digital Services Srl", value: 92000, discount_percent: 8.3 },
-  { id: "comp3", year: 2022, authority: "Comune di Roma", winner: "TechCorp Italia", value: 105000, discount_percent: 15.2 },
-  { id: "comp4", year: 2022, authority: "Provincia di Milano", winner: "Sistemi Informativi Srl", value: 68000, discount_percent: 10.1 },
-]
+function parseChecklist(json: unknown): ChecklistItem[] {
+  try {
+    if (!json) return []
+    const arr = typeof json === 'string' ? JSON.parse(json) : json
+    if (!Array.isArray(arr)) return []
+    return arr.filter(
+      (item): item is ChecklistItem =>
+        typeof item === 'object' && item !== null && typeof item.requirement === 'string'
+    )
+  } catch {
+    return []
+  }
+}
+
+function parseLots(json: unknown): LotItem[] {
+  try {
+    if (!json) return []
+    const arr = typeof json === 'string' ? JSON.parse(json) : json
+    if (!Array.isArray(arr)) return []
+    return arr.filter(
+      (item): item is LotItem =>
+        typeof item === 'object' && item !== null && typeof item.lot_number === 'number'
+    )
+  } catch {
+    return []
+  }
+}
 
 export interface BandoDetailProps {
   bando: Bando
@@ -165,9 +182,12 @@ export function BandoDetail({ bando }: BandoDetailProps) {
 
   const days = daysUntil(bando.deadline)
 
-  const checklistReady = mockChecklist.filter(i => i.is_ready).length
-  const checklistTotal = mockChecklist.length
-  const checklistProgress = Math.round((checklistReady / checklistTotal) * 100)
+  const checklist = parseChecklist(bando.gap_analysis_json)
+  const lotti = parseLots(bando.lots_json)
+
+  const checklistReady = checklist.filter(i => i.is_ready).length
+  const checklistTotal = checklist.length
+  const checklistProgress = checklistTotal > 0 ? Math.round((checklistReady / checklistTotal) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -590,22 +610,19 @@ export function BandoDetail({ bando }: BandoDetailProps) {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      {mockChecklist.map((item) => (
-                        <div key={item.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${item.is_ready ? "bg-emerald-500/5 border-emerald-500/20" : "bg-muted/20 border-border/20"}`}>
+                      {checklist.length === 0 ? (
+                        <div className="text-center py-8">
+                          <CheckCircle2 className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Nessun requisito disponibile nella gap analysis</p>
+                        </div>
+                      ) : checklist.map((item, idx) => (
+                        <div key={idx} className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${item.is_ready ? "bg-emerald-500/5 border-emerald-500/20" : "bg-muted/20 border-border/20"}`}>
                           <button className={`w-5 h-5 rounded flex items-center justify-center border flex-shrink-0 mt-0.5 ${item.is_ready ? "bg-emerald-500 border-emerald-500" : "border-border/50 hover:border-primary/50"}`}>
                             {item.is_ready && <CheckCircle2 className="size-3 text-white" />}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-medium ${item.is_ready ? "text-foreground" : "text-foreground/80"}`}>{item.document_name}</span>
-                              {item.is_long_process && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Lungo</span>}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                              <span>Tempo: {item.estimated_time}</span>
-                              <span className="hidden md:inline">|</span>
-                              <span className="hidden md:inline">{item.how_to_obtain}</span>
-                            </div>
+                            <span className={`text-sm font-medium ${item.is_ready ? "text-foreground" : "text-foreground/80"}`}>{item.requirement}</span>
+                            {item.note && <p className="text-xs text-muted-foreground mt-0.5">{item.note}</p>}
                           </div>
                           {!item.is_ready && <button className="text-xs px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">Segna pronto</button>}
                         </div>
@@ -616,26 +633,28 @@ export function BandoDetail({ bando }: BandoDetailProps) {
 
                 {activeTab === "lotti" && (
                   <motion.div key="lotti" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                    {mockLotti.length === 0 ? (
+                    {lotti.length === 0 ? (
                       <div className="text-center py-8">
                         <Users className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-                        <p className="text-sm text-muted-foreground">Bando senza lotti</p>
+                        <p className="text-sm text-muted-foreground">Nessun lotto disponibile</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {mockLotti.map((lotto) => (
-                          <div key={lotto.id} className="bg-muted/20 rounded-xl border border-border/20 p-4">
+                        {lotti.map((lotto, idx) => (
+                          <div key={idx} className="bg-muted/20 rounded-xl border border-border/20 p-4">
                             <div className="flex items-start justify-between gap-4">
                               <div>
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">Lotto {lotto.lot_number}</span>
                                   <span className="text-sm font-medium text-foreground">{lotto.title}</span>
                                 </div>
-                                <p className="text-xs text-muted-foreground">{lotto.description}</p>
+                                {lotto.description && <p className="text-xs text-muted-foreground">{lotto.description}</p>}
                               </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium text-foreground">{formatCurrency(lotto.value)}</div>
-                              </div>
+                              {lotto.value != null && (
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-foreground">{formatCurrency(lotto.value)}</div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -646,47 +665,10 @@ export function BandoDetail({ bando }: BandoDetailProps) {
 
                 {activeTab === "competitor" && (
                   <motion.div key="competitor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-primary mb-2">
-                        <Sparkles className="size-4" />
-                        <span className="text-sm font-medium">Insight AI</span>
-                      </div>
-                      <p className="text-sm text-foreground/90">
-                        Il ribasso medio in questo CPV (72.26) e del <strong>11.5%</strong>. Considera una strategia di offerta intorno al 10-12% per essere competitivo.
-                      </p>
-                    </div>
-                    <h3 className="text-sm font-medium text-foreground">Storico Aggiudicazioni Simili</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border/20">
-                            <th className="text-left text-xs text-muted-foreground font-medium py-2 px-3">Ente</th>
-                            <th className="text-left text-xs text-muted-foreground font-medium py-2 px-3">Anno</th>
-                            <th className="text-left text-xs text-muted-foreground font-medium py-2 px-3">Aggiudicatario</th>
-                            <th className="text-right text-xs text-muted-foreground font-medium py-2 px-3">Valore</th>
-                            <th className="text-right text-xs text-muted-foreground font-medium py-2 px-3">Ribasso</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/10">
-                          {mockCompetitors.map((comp) => (
-                            <tr key={comp.id} className="hover:bg-muted/10">
-                              <td className="py-3 px-3 text-foreground">{comp.authority}</td>
-                              <td className="py-3 px-3 text-muted-foreground">{comp.year}</td>
-                              <td className="py-3 px-3 text-foreground">{comp.winner}</td>
-                              <td className="py-3 px-3 text-right text-foreground">{formatCurrency(comp.value)}</td>
-                              <td className="py-3 px-3 text-right">
-                                <span className={`text-xs px-2 py-0.5 rounded ${
-                                  comp.discount_percent > 15 ? "bg-red-500/10 text-red-400" :
-                                  comp.discount_percent > 10 ? "bg-amber-500/10 text-amber-400" :
-                                  "bg-emerald-500/10 text-emerald-400"
-                                }`}>
-                                  -{comp.discount_percent}%
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="text-center py-8">
+                      <TrendingUp className="size-12 text-muted-foreground/50 mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Dati competitor non disponibili</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Questa sezione sarà popolata dall&apos;analisi OSINT in futuro.</p>
                     </div>
                   </motion.div>
                 )}

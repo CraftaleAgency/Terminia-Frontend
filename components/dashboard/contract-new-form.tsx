@@ -32,7 +32,7 @@ import type { Database } from '@/types/database'
 
 type CounterpartRow = Database['public']['Tables']['counterparts']['Row']
 type EmployeeRow = Database['public']['Tables']['employees']['Row']
-import { analyzeContractAction } from "@/lib/actions/contracts"
+import { analyzeContractAction, saveContractAction } from "@/lib/actions/contracts"
 import { verifyCounterpartAction } from "@/lib/actions/osint"
 import type { AnalyzeContractResponse, VerifyOSINTResponse } from "@/types/terminia"
 import { toast } from "sonner"
@@ -340,11 +340,21 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    const result = await saveContractAction({
+      formData,
+      analysisResult,
+      reliabilityScore,
+    })
 
-    // TODO: Save to Supabase
-    router.push("/dashboard/contracts")
+    if (result.success) {
+      toast.success("Contratto salvato con successo")
+      router.push(result.contractId
+        ? `/dashboard/contracts/${result.contractId}`
+        : "/dashboard/contracts")
+    } else {
+      toast.error(result.error || "Errore durante il salvataggio")
+      setIsSubmitting(false)
+    }
   }
 
   const isHRContract = ["permanent", "fixed_term", "cococo", "apprenticeship", "internship", "collaboration"].includes(formData.contract_type)
@@ -366,7 +376,7 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Nuovo Contratto</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Carica un documento PDF o crea manualmente
+            Carica un documento o crea manualmente
           </p>
         </div>
       </motion.div>
@@ -419,7 +429,7 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
                 onClick={() => {
                   const input = document.createElement("input")
                   input.type = "file"
-                  input.accept = ".pdf,.docx"
+                  input.accept = ".pdf,.docx,.jpg,.jpeg,.png,.tiff,.webp"
                   input.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0]
                     if (file) handleFileUpload(file)
@@ -434,7 +444,7 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
                   Trascina il contratto qui o clicca per selezionare
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Formati accettati: PDF, DOCX (massimo 50MB)
+                  Formati accettati: PDF, DOCX, immagini (JPG, PNG) — massimo 50MB
                 </p>
                 <button className="mt-4 text-xs text-primary hover:underline">
                   Oppure crea manualmente

@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { sendChatMessageAction } from "@/lib/actions/chat"
 
-// Mock contracts to select from (replace with real data when available)
-const mockContracts = [
-  { id: "c1", title: "Manutenzione impianti elettrici", counterpart: "Facility Service Srl", expiresAt: "2025-09-30" },
-  { id: "c2", title: "Fornitura licenze software", counterpart: "TechVendor SpA", expiresAt: "2025-12-15" },
-  { id: "c3", title: "Servizio pulizia uffici", counterpart: "CleanPro Italia", expiresAt: "2025-06-30" },
-  { id: "c4", title: "Consulenza fiscale annuale", counterpart: "Studio Rossi & Associati", expiresAt: "2026-01-31" },
-]
+// Contract data for document generation
+interface ContractOption {
+  id: string
+  title: string
+  counterpart: string
+  expiresAt: string
+}
 
 type DocumentType = "disdetta" | "riepilogo" | null
 
@@ -38,7 +38,11 @@ const documentActions = [
   },
 ]
 
-export function DocumentsView() {
+interface DocumentsViewProps {
+  contracts: ContractOption[]
+}
+
+export function DocumentsView({ contracts }: DocumentsViewProps) {
   const [selectingFor, setSelectingFor] = useState<DocumentType>(null)
   const [generating, setGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<string | null>(null)
@@ -52,7 +56,7 @@ export function DocumentsView() {
     setError(null)
   }
 
-  const handleContractSelect = async (contract: typeof mockContracts[0]) => {
+  const handleContractSelect = async (contract: ContractOption) => {
     setSelectingFor(null)
     setGenerating(true)
     setError(null)
@@ -176,7 +180,9 @@ export function DocumentsView() {
                 : "Per quale contratto vuoi generare il riepilogo?"}
             </p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {mockContracts.map((contract) => (
+              {contracts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nessun contratto disponibile</p>
+              ) : contracts.map((contract) => (
                 <button
                   key={contract.id}
                   onClick={() => handleContractSelect(contract)}
