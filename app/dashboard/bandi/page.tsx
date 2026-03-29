@@ -1,6 +1,6 @@
 import { fetchBandi } from '@/lib/actions/data'
 import { BandiList } from '@/components/dashboard/bandi-list'
-export const revalidate = 3600 // revalidate every hour
+export const dynamic = 'force-dynamic'
 
 export default async function BandiPage() {
   const bandi = await fetchBandi()
