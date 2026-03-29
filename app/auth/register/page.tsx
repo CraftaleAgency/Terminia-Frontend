@@ -154,8 +154,9 @@ export default function RegisterPage() {
         }
 
         // Extract fiscal code from document for persona fisica
-        const rawText = sourceText || (result.data.classification.contract_type ?? '').toUpperCase()
+        const rawText = sourceText || (result.data.source_text ?? '') || (result.data.classification.contract_type ?? '').toUpperCase()
         const cfMatch = rawText.match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
+          ?? rawText.replace(/[^A-Z0-9]/g, '').match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
         const cfFromParties = registrationProfile?.fiscal_code ?? companyParty?.counterpart?.cf
         const city = registrationProfile?.city?.trim()
         if (city) {
