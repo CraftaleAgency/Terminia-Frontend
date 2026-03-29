@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { 
-  X, 
-  Send, 
-  Bot, 
-  User, 
+import {
+  X,
+  Send,
+  Bot,
+  User,
   Sparkles,
   FileText,
   Bell,
@@ -14,11 +14,27 @@ import {
   BarChart3,
   Building2,
   Wallet,
+  Paperclip,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  MessageSquare,
   type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAIChat } from "@/contexts/ai-chat-context"
-import { sendChatMessageAction, getChatStreamConfig, type ChatMessage } from "@/lib/actions/chat"
+import {
+  sendChatMessageAction,
+  getChatStreamConfig,
+  listConversationsAction,
+  createConversationAction,
+  getConversationMessagesAction,
+  renameConversationAction,
+  deleteConversationAction,
+  type ChatMessage
+} from "@/lib/actions/chat"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Message {
@@ -26,6 +42,19 @@ interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: Date
+}
+
+interface Conversation {
+  id: string
+  title: string
+  updated_at: string
+}
+
+interface Attachment {
+  file: File
+  base64: string
+  content_type: string
+  filename: string
 }
 
 interface SuggestedQuestion {
@@ -67,6 +96,37 @@ const suggestedQuestions: SuggestedQuestion[] = [
   },
 ]
 
+const ACCEPTED_FILE_TYPES = ".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.gif"
+
+function relativeTime(dateStr: string): string {
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diffMs = now - then
+  const minutes = Math.floor(diffMs / 60_000)
+  if (minutes < 1) return "adesso"
+  if (minutes < 60) return `${minutes} min fa`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} ${hours === 1 ? "ora" : "ore"} fa`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} ${days === 1 ? "giorno" : "giorni"} fa`
+  const months = Math.floor(days / 30)
+  return `${months} ${months === 1 ? "mese" : "mesi"} fa`
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Strip the data:...;base64, prefix
+      const base64 = result.split(",")[1] ?? result
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 interface AIChatSidebarProps {
   // Props removed - now uses context
 }
@@ -77,6 +137,18 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
   const [inputValue, setInputValue] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+
+  // Conversation persistence state
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+
+  // File attachment state
+  const [attachment, setAttachment] = useState<Attachment | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
@@ -88,6 +160,24 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     scrollToBottom()
   }, [messages])
 
+  // Load conversation list on mount and when sidebar opens
+  const loadConversations = useCallback(async () => {
+    try {
+      const result = await listConversationsAction()
+      if (Array.isArray(result)) {
+        setConversations(result)
+      }
+    } catch {
+      // silently fail — list stays empty
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isChatOpen) {
+      loadConversations()
+    }
+  }, [isChatOpen, loadConversations])
+
   // Handle resize
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -95,7 +185,7 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
 
       const newWidth = window.innerWidth - e.clientX
       const minWidth = 320
-      const maxWidth = window.innerWidth * 0.6 // Max 60% of viewport
+      const maxWidth = window.innerWidth * 0.6
 
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         setChatWidth(newWidth)
@@ -121,8 +211,91 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     }
   }, [isResizing, setChatWidth])
 
+  // --- Conversation management ---
+
+  const handleNewConversation = () => {
+    setActiveConversationId(null)
+    setMessages([])
+    setAttachment(null)
+    setHistoryOpen(false)
+  }
+
+  const handleSelectConversation = async (conv: Conversation) => {
+    setActiveConversationId(conv.id)
+    setHistoryOpen(false)
+    setAttachment(null)
+    try {
+      const result = await getConversationMessagesAction(conv.id)
+      if (Array.isArray(result)) {
+        setMessages(
+          result.map((m: ChatMessage & { id?: string; created_at?: string }) => ({
+            id: m.id ?? crypto.randomUUID(),
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+          }))
+        )
+      }
+    } catch {
+      // keep current messages on failure
+    }
+  }
+
+  const handleRenameConversation = async (id: string) => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) {
+      setRenamingId(null)
+      return
+    }
+    try {
+      await renameConversationAction(id, trimmed)
+      setConversations(prev =>
+        prev.map(c => (c.id === id ? { ...c, title: trimmed } : c))
+      )
+    } catch {
+      // silently fail
+    }
+    setRenamingId(null)
+  }
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversationAction(id)
+      setConversations(prev => prev.filter(c => c.id !== id))
+      if (activeConversationId === id) {
+        handleNewConversation()
+      }
+    } catch {
+      // silently fail
+    }
+  }
+
+  // --- File attachment ---
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const base64 = await fileToBase64(file)
+      setAttachment({
+        file,
+        base64,
+        content_type: file.type || "application/octet-stream",
+        filename: file.name,
+      })
+    } catch {
+      // ignore read errors
+    }
+    // Reset input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const clearAttachment = () => setAttachment(null)
+
+  // --- Send message ---
+
   const handleSendMessage = async (content: string) => {
-    if (!content.trim()) return
+    if (!content.trim() && !attachment) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -135,16 +308,48 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
     setInputValue("")
     setIsTyping(true)
 
+    // Capture attachment before clearing
+    const currentAttachment = attachment
+      ? { base64: attachment.base64, content_type: attachment.content_type, filename: attachment.filename }
+      : undefined
+    setAttachment(null)
+
+    // Create conversation on first message
+    let conversationId = activeConversationId
+    if (!conversationId) {
+      try {
+        const title = content.trim().slice(0, 50) || "Nuova conversazione"
+        const created = await createConversationAction(title)
+        if (created && typeof created === "object" && "id" in created) {
+          conversationId = (created as { id: string }).id
+          setActiveConversationId(conversationId)
+          setConversations(prev => [
+            { id: conversationId!, title, updated_at: new Date().toISOString() },
+            ...prev,
+          ])
+        }
+      } catch {
+        // continue without persistence
+      }
+    }
+
     const chatHistory: ChatMessage[] = [
       ...messages.map(m => ({ role: m.role, content: m.content })),
       { role: "user" as const, content: content.trim() }
     ]
 
-    // Try streaming first, fall back to non-streaming server action
     let streamCommitted = false
     try {
       const config = await getChatStreamConfig()
       if ("error" in config) throw new Error(config.error)
+
+      const fetchBody: Record<string, unknown> = {
+        messages: chatHistory.slice(-20),
+        company_id: config.companyId,
+        stream: true,
+      }
+      if (conversationId) fetchBody.conversation_id = conversationId
+      if (currentAttachment) fetchBody.attachment = currentAttachment
 
       const response = await fetch(config.url, {
         method: "POST",
@@ -152,18 +357,13 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${config.token}`,
         },
-        body: JSON.stringify({
-          messages: chatHistory.slice(-20),
-          company_id: config.companyId,
-          stream: true,
-        }),
+        body: JSON.stringify(fetchBody),
       })
 
       if (!response.ok || !response.body) {
         throw new Error(`Stream failed (${response.status})`)
       }
 
-      // Stream is available — commit to this path
       streamCommitted = true
       const assistantMessageId = (Date.now() + 1).toString()
       setIsTyping(false)
@@ -212,17 +412,14 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
         reader.releaseLock()
       }
 
-      // If the stream ended with no content, show a fallback
       setMessages(prev => prev.map(m =>
         m.id === assistantMessageId && !m.content.trim()
           ? { ...m, content: "Mi dispiace, non riesco a rispondere in questo momento. Riprova tra qualche istante." }
           : m
       ))
     } catch {
-      // If we already committed to streaming, partial content stays as-is
       if (streamCommitted) return
 
-      // Fall back to non-streaming server action
       try {
         const result = await sendChatMessageAction(chatHistory)
         setIsTyping(false)
@@ -286,6 +483,109 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
             </button>
           </div>
 
+          {/* Conversation history dropdown */}
+          <div className="flex-shrink-0 border-b border-border/30">
+            <button
+              onClick={() => setHistoryOpen(prev => !prev)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <MessageSquare className="size-3.5" />
+                <span className="truncate">
+                  {activeConversationId
+                    ? conversations.find(c => c.id === activeConversationId)?.title ?? "Conversazione"
+                    : "Nuova conversazione"}
+                </span>
+              </span>
+              {historyOpen ? <ChevronUp className="size-3.5 flex-shrink-0" /> : <ChevronDown className="size-3.5 flex-shrink-0" />}
+            </button>
+
+            <AnimatePresence>
+              {historyOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-3 pb-3 space-y-1 max-h-64 overflow-y-auto">
+                    {/* New conversation button */}
+                    <button
+                      onClick={handleNewConversation}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <Plus className="size-3.5" />
+                      Nuova conversazione
+                    </button>
+
+                    {conversations.map(conv => (
+                      <div
+                        key={conv.id}
+                        className={cn(
+                          "group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
+                          conv.id === activeConversationId
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-muted/30"
+                        )}
+                      >
+                        {renamingId === conv.id ? (
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={e => setRenameValue(e.target.value)}
+                            onBlur={() => handleRenameConversation(conv.id)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") handleRenameConversation(conv.id)
+                              if (e.key === "Escape") setRenamingId(null)
+                            }}
+                            className="flex-1 min-w-0 bg-transparent border-b border-primary/50 text-sm text-foreground outline-none"
+                          />
+                        ) : (
+                          <div
+                            className="flex-1 min-w-0"
+                            onClick={() => handleSelectConversation(conv)}
+                          >
+                            <p className="truncate text-sm">{conv.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{relativeTime(conv.updated_at)}</p>
+                          </div>
+                        )}
+
+                        {renamingId !== conv.id && (
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                setRenamingId(conv.id)
+                                setRenameValue(conv.title)
+                              }}
+                              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                handleDeleteConversation(conv.id)
+                              }}
+                              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {conversations.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">Nessuna conversazione salvata</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Messages */}
           <div className="flex-1 min-h-0">
             <ScrollArea className="h-full">
@@ -299,7 +599,7 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
                     </div>
                     <h3 className="font-semibold text-foreground mb-2">Ciao!</h3>
                     <p className="text-sm text-muted-foreground">
-                      Sono l'assistente AI di Terminia. Posso aiutarti con la gestione dei contratti, scadenze e molto altro.
+                      Sono l&#39;assistente AI di Terminia. Posso aiutarti con la gestione dei contratti, scadenze e molto altro.
                     </p>
                   </div>
 
@@ -399,6 +699,22 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
             </ScrollArea>
           </div>
 
+            {/* Attachment chip */}
+            {attachment && (
+              <div className="px-4 pt-2 flex-shrink-0">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary">
+                  <Paperclip className="size-3" />
+                  <span className="truncate max-w-[180px]">{attachment.filename}</span>
+                  <button
+                    onClick={clearAttachment}
+                    className="p-0.5 rounded hover:bg-primary/20 transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-4 border-t border-border/30">
               <form
@@ -406,8 +722,26 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
                   e.preventDefault()
                   handleSendMessage(inputValue)
                 }}
-                className="flex gap-2"
+                className="flex items-center gap-2"
               >
+                {/* File upload button */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isTyping}
+                  className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                  title="Allega file"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+
                 <input
                   type="text"
                   value={inputValue}
@@ -418,8 +752,8 @@ export function AIChatSidebar({}: AIChatSidebarProps) {
                 />
                 <button
                   type="submit"
-                  disabled={!inputValue.trim() || isTyping}
-                  className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={(!inputValue.trim() && !attachment) || isTyping}
+                  className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
                 >
                   <Send className="size-4" />
                 </button>

@@ -211,10 +211,24 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
       )
       setAiConfidence(confidence)
 
-      // Map extracted data to form fields
+      // Map extracted data to form fields — as complete as possible
       const counterparty = analysis.classification.parties?.counterpart
       const contractType = mapContractType(analysis.classification.contract_type)
       const isEmployee = analysis.classification.counterpart_type === "employee"
+      const extraction = analysis.extraction
+      const dates = extraction.dates
+      const value = extraction.value
+      const renewal = extraction.renewal
+
+      // Try to match counterpart by name or VAT
+      let matchedCounterpartId = ""
+      if (counterparty?.name || counterparty?.vat) {
+        const match = counterparts.find(cp =>
+          (counterparty.vat && cp.vat_number === counterparty.vat) ||
+          (counterparty.name && cp.name.toLowerCase().includes(counterparty.name.toLowerCase()))
+        )
+        if (match) matchedCounterpartId = match.id
+      }
 
       setFormData(prev => ({
         ...prev,
@@ -223,16 +237,21 @@ function ContractNewFormContent({ counterparts, employees }: ContractNewFormProp
           : CONTRACT_TYPE_LABELS[contractType] || analysis.classification.contract_type,
         contract_type: contractType,
         actor_type: isEmployee ? "employee" as ActorType : "counterpart" as ActorType,
-        value: analysis.extraction.value?.total_value?.toString() || "",
+        counterpart_id: matchedCounterpartId,
+        value: value?.total_value?.toString() || "",
         value_type: "total" as const,
-        start_date: analysis.extraction.dates?.start_date || "",
-        end_date: analysis.extraction.dates?.end_date || "",
-        auto_renewal: analysis.extraction.renewal?.auto_renewal || false,
+        payment_terms_days: value?.payment_terms_days?.toString() || "",
+        signing_date: dates?.signing_date || "",
+        start_date: dates?.start_date || "",
+        end_date: dates?.end_date || "",
+        auto_renewal: renewal?.auto_renewal || false,
+        renewal_notice_days: renewal?.renewal_notice_days?.toString() || "",
+        renewal_duration_months: renewal?.renewal_duration_months?.toString() || "",
       }))
 
       if (confidence >= 85) {
-        // High confidence — show classified step, then preview
-        setUploadStep("classified")
+        // High confidence — go straight to preview with autofilled fields
+        setUploadStep("preview")
       } else {
         // Low confidence — ask user to confirm uncertain fields
         setAiQuestions([
