@@ -3,6 +3,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NemoClawError } from '@/lib/ai/client'
 
+async function getCompanyId(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('users').select('company_id').eq('id', user.id).single()
+  return data?.company_id || null
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -26,7 +34,7 @@ export async function sendChatMessageAction(
       return { success: false, error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     const session = await supabase.auth.getSession()
     const token = session.data.session?.access_token
     if (!token) {
@@ -82,7 +90,7 @@ export async function getChatStreamConfig(): Promise<{
       return { error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     const session = await supabase.auth.getSession()
     const token = session.data.session?.access_token
     if (!token || !companyId) {
@@ -165,7 +173,7 @@ export async function createConversationAction(title?: string): Promise<
       return { success: false, error: 'Non autenticato' }
     }
 
-    const companyId = user.user_metadata?.company_id
+    const companyId = await getCompanyId()
     if (!companyId) {
       return { success: false, error: 'Company non configurata' }
     }
