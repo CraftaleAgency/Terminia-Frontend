@@ -134,20 +134,24 @@ export default function RegisterPage() {
       if (result.success && result.data) {
         const filled = new Set<string>()
         const updates: Record<string, string> = {}
+        const sourceText = (result.data.source_text ?? '').toUpperCase()
 
         const companyParty = result.data.classification.parties
         if (companyParty?.company) {
           updates.companyName = companyParty.company
           filled.add('companyName')
         }
-        if (companyParty?.counterpart?.vat) {
-          const vat = companyParty.counterpart.vat.replace(/\D/g, '').slice(0, 11)
+        const rawVat = companyParty?.counterpart?.vat
+          ?? sourceText.match(/(?:PARTITA\s*IVA|P\.?\s*IVA|PIVA|VAT)\D{0,12}(\d{11})/)?.[1]
+          ?? sourceText.match(/\b\d{11}\b/)?.[0]
+        if (rawVat) {
+          const vat = rawVat.replace(/\D/g, '').slice(0, 11)
           updates.vatNumber = vat
           filled.add('vatNumber')
         }
 
         // Extract fiscal code from document for persona fisica
-        const rawText = (result.data.classification.contract_type ?? '').toUpperCase()
+        const rawText = sourceText || (result.data.classification.contract_type ?? '').toUpperCase()
         const cfMatch = rawText.match(/[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/)
         const cfFromParties = companyParty?.counterpart?.cf
         if (formData.accountType === 'person') {
